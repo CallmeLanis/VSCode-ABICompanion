@@ -63,7 +63,7 @@ export default function App() {
       <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
 
       {/* Main Content */}
-      <main className="min-h-screen lg:pl-0">
+      <main className="min-h-screen lg:pl-64">
         {/* Mobile header spacer */}
         <div className="lg:hidden h-16" />
 

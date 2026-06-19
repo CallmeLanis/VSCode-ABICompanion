@@ -130,8 +130,6 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
         </div>
       </aside>
 
-      {/* Spacer for sidebar */}
-      <div className="hidden lg:block w-64 shrink-0" />
     </>
   );
 }
