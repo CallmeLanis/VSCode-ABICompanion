@@ -145,7 +145,6 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
     onClose();
   };
 
-  const isValid = loot.length > 0 || status !== 'EXTRACTED';
 
   return (
     <>
@@ -382,7 +381,7 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
         {/* Footer */}
         <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-abi-border">
           <Button variant="secondary" onClick={handleClose}>Cancel</Button>
-          <Button variant="primary" onClick={handleSave} glow disabled={!isValid}>
+          <Button variant="primary" onClick={handleSave} glow>
             Save Raid
           </Button>
         </div>
