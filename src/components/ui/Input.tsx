@@ -92,8 +92,8 @@ export function Select({
 
 interface NumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
   label?: string;
-  value: number;
-  onChange: (value: number) => void;
+  value?: number;
+  onChange: (value?: number) => void;
   min?: number;
   max?: number;
   step?: number;
@@ -110,15 +110,20 @@ export function NumberInput({
   ...props
 }: NumberInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseFloat(e.target.value) || 0;
-    onChange(newValue);
+    const v = e.target.value;
+    if (v === '' || v === null) {
+      onChange(undefined);
+      return;
+    }
+    const parsed = parseFloat(v);
+    onChange(Number.isNaN(parsed) ? undefined : parsed);
   };
 
   return (
     <Input
       type="number"
       label={label}
-      value={value}
+      value={value !== undefined ? value : ''}
       onChange={handleChange}
       min={min}
       max={max}

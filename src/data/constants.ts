@@ -3,11 +3,11 @@ import type { MapData, GameMode, AmmoCaliber, ConsumableTemplate, Vendor } from 
 // Maps
 export const MAPS: MapData[] = [
   { id: 'farm', name: 'Farm', shortName: 'Farm' },
-  { id: 'factory', name: 'Factory', shortName: 'Fact' },
-  { id: 'northridge', name: 'Northridge', shortName: 'NR' },
   { id: 'valley', name: 'Valley', shortName: 'Val' },
   { id: 'armory', name: 'Armory', shortName: 'Arm' },
-  { id: 'power_station', name: 'Power Station', shortName: 'Pwr' },
+  { id: 'tv_station', name: 'TV Station', shortName: 'TV' },
+  { id: 'northridge', name: 'Northridge', shortName: 'NR' },
+  { id: 'airports', name: 'Airports', shortName: 'Air' },
 ];
 
 // Game Modes

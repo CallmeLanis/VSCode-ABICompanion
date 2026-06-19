@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, NumberInput, ConfirmModal } from '../components/ui';
-import { getSettings, saveSettings, clearAllStorage } from '../utils/storage';
+import { getStoredSettings, saveSettings, clearAllStorage } from '../utils/storage';
 import { formatPercentage } from '../utils/economy';
 import { Settings, Trash2, Info } from 'lucide-react';
 import type { AppSettings } from '../types';
 
 export function SettingsPage() {
-  const [settings, setSettings] = useState<AppSettings>(getSettings);
+  const [settings, setSettings] = useState<Partial<AppSettings>>(getStoredSettings);
   const [hasChanges, setHasChanges] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
-    const original = getSettings();
+    const original = getStoredSettings();
     const changed = JSON.stringify(settings) !== JSON.stringify(original);
     setHasChanges(changed);
   }, [settings]);
@@ -22,14 +22,9 @@ export function SettingsPage() {
   };
 
   const handleReset = () => {
-    const defaults: AppSettings = {
-      globalTaxRate: 0.10,
-      sessionDuration: 60,
-      highlightProfitThreshold: 50000,
-      highlightKillThreshold: 5,
-    };
-    setSettings(defaults);
-    saveSettings(defaults);
+    // Clear stored settings (do not re-insert defaults)
+    setSettings({});
+    saveSettings({});
     setHasChanges(false);
   };
 
@@ -55,14 +50,15 @@ export function SettingsPage() {
           <div>
             <NumberInput
               label="Global Market Tax Rate (%)"
-              value={settings.globalTaxRate * 100}
-              onChange={(val) => setSettings({ ...settings, globalTaxRate: val / 100 })}
+              value={settings.globalTaxRate !== undefined ? settings.globalTaxRate * 100 : undefined}
+              onChange={(val) => setSettings({ ...settings, globalTaxRate: val !== undefined ? val / 100 : undefined })}
               min={0}
               max={100}
               step={1}
+              placeholder="e.g. 10"
             />
             <p className="text-xs text-abi-text-dim mt-1">
-              Current: {formatPercentage(settings.globalTaxRate * 100)} tax on market sales
+              Current: {settings.globalTaxRate !== undefined ? formatPercentage(settings.globalTaxRate * 100) : 'Not set'} tax on market sales
             </p>
           </div>
         </div>
@@ -80,6 +76,7 @@ export function SettingsPage() {
             onChange={(val) => setSettings({ ...settings, sessionDuration: val })}
             min={10}
             max={480}
+            placeholder="e.g. 60"
           />
           <p className="text-xs text-abi-text-dim">
             Raids within this time window are grouped into the same session
@@ -99,6 +96,7 @@ export function SettingsPage() {
             onChange={(val) => setSettings({ ...settings, highlightProfitThreshold: val })}
             min={0}
             step={1000}
+            placeholder="e.g. 50000"
           />
           <p className="text-xs text-abi-text-dim">
             Raids with profit at or above this amount are automatically highlighted
@@ -109,6 +107,7 @@ export function SettingsPage() {
             value={settings.highlightKillThreshold}
             onChange={(val) => setSettings({ ...settings, highlightKillThreshold: val })}
             min={0}
+            placeholder="e.g. 5"
           />
           <p className="text-xs text-abi-text-dim">
             Raids with kills at or above this amount are automatically highlighted

@@ -68,8 +68,12 @@ export function RaidDetailPopup({ raidId, isOpen, onClose }: RaidDetailPopupProp
           </div>
           <div className="text-center">
             <Package size={16} className="mx-auto text-abi-text-dim mb-1" />
-            <p className="text-lg font-bold text-abi-text">{raid.loot.length}</p>
-            <p className="text-xs text-abi-text-muted">Items</p>
+            <p className="text-lg font-bold text-abi-text">
+              {raid.loot.length > 0 ? raid.loot.length : `$${formatCurrency(raid.lootValue)}`}
+            </p>
+            <p className="text-xs text-abi-text-muted">
+              {raid.loot.length > 0 ? 'Items' : 'Loot Value'}
+            </p>
           </div>
         </div>
 
@@ -154,7 +158,7 @@ export function RaidDetailPopup({ raidId, isOpen, onClose }: RaidDetailPopupProp
               ))}
             </div>
           ) : (
-            <p className="text-abi-text-dim text-sm">No loot extracted</p>
+            <p className="text-abi-text-dim text-sm">Loot is stored as an aggregated total value for this raid.</p>
           )}
           <div className="flex justify-between text-sm font-semibold border-t border-abi-border pt-2 mt-2">
             <span className="text-abi-text">Total Loot Value</span>

@@ -15,7 +15,7 @@ interface AddAmmoModalProps {
 export function AddAmmoModal({ isOpen, onClose, onSave, initialAmmo = [] }: AddAmmoModalProps) {
   const [ammo, setAmmo] = useState<AmmoEntry[]>(initialAmmo);
   const [selectedCaliber, setSelectedCaliber] = useState<string | null>(null);
-  const [quickAdd, setQuickAdd] = useState({ tier: '', quantity: 1 });
+  const [quickAdd, setQuickAdd] = useState<{ tier: string; quantity?: number }>({ tier: '', quantity: undefined });
 
   const handleAddAmmo = (tier: AmmoTier, caliber: string, quantity: number) => {
     const newAmmo: AmmoEntry = {
@@ -93,20 +93,21 @@ export function AddAmmoModal({ isOpen, onClose, onSave, initialAmmo = [] }: AddA
                           <input
                             type="number"
                             min={1}
-                            value={quickAdd.tier === tier.id ? quickAdd.quantity : 1}
+                            value={quickAdd.tier === tier.id && quickAdd.quantity !== undefined ? quickAdd.quantity : ''}
                             onChange={(e) => {
-                              setQuickAdd({ tier: tier.id, quantity: parseInt(e.target.value) || 1 });
+                              const parsed = parseInt(e.target.value);
+                              setQuickAdd({ tier: tier.id, quantity: Number.isNaN(parsed) ? undefined : parsed });
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setQuickAdd({ tier: tier.id, quantity: quickAdd.tier === tier.id ? quickAdd.quantity : 1 });
+                              setQuickAdd({ tier: tier.id, quantity: quickAdd.tier === tier.id ? quickAdd.quantity : undefined });
                             }}
                             className="w-16 px-2 py-1 text-sm bg-abi-bg border border-abi-border rounded text-abi-text"
                           />
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const qty = quickAdd.tier === tier.id ? quickAdd.quantity : 1;
+                              const qty = quickAdd.tier === tier.id && quickAdd.quantity ? quickAdd.quantity : 1;
                               handleAddAmmo(tier, caliber.name, qty);
                             }}
                             className="px-2 py-1 rounded bg-abi-orange/20 text-abi-orange hover:bg-abi-orange hover:text-white transition-colors"

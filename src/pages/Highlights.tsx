@@ -1,154 +1,142 @@
 import { useState, useMemo } from 'react';
-import { Card, Badge, Button, EmptyState, Tabs } from '../components/ui';
+import { Button, EmptyState, Select } from '../components/ui';
 import { getHighlights, getRaids } from '../utils/storage';
 import { formatCurrency, formatDateTime } from '../utils/economy';
-import { STATUS_ICONS } from '../data/constants';
-import { Star, Heart, TrendingUp, Target, Package } from 'lucide-react';
+import { Eye, Star, Heart } from 'lucide-react';
 import type { Highlight, Raid } from '../types';
+import HighlightDetailModal from '../components/highlights/HighlightDetailModal';
 
 interface HighlightsProps {
-  onRaidClick: (raidId: string) => void;
+  onRaidClick?: (raidId: string) => void;
 }
 
-type HighlightCategory = 'all' | 'profit' | 'kills' | 'rare' | 'manual';
-
-export function Highlights({ onRaidClick }: HighlightsProps) {
+export function Highlights(_: HighlightsProps) {
   const highlights = getHighlights();
   const raids = getRaids();
-  const [categoryFilter, setCategoryFilter] = useState<HighlightCategory>('all');
+  const [sortMode, setSortMode] = useState<'newest' | 'oldest' | 'profit'>('newest');
   const [showFavorites, setShowFavorites] = useState(false);
+  const [detailRaidId, setDetailRaidId] = useState<string | null>(null);
 
-  // Map raid id to raid
   const raidMap = useMemo(() => {
     const map = new Map<string, Raid>();
     raids.forEach(r => map.set(r.id, r));
     return map;
   }, [raids]);
 
-  // Filtered highlights
   const filteredHighlights = useMemo(() => {
-    let result = highlights.map(h => ({
-      highlight: h,
-      raid: raidMap.get(h.raidId),
-    })).filter(item => item.raid) as { highlight: Highlight; raid: Raid }[];
+    let result = highlights
+      .map(h => ({ highlight: h, raid: raidMap.get(h.raidId) }))
+      .filter(item => item.raid) as { highlight: Highlight; raid: Raid }[];
 
-    if (showFavorites) {
-      result = result.filter(item => item.highlight.isFavorite);
-    }
+    if (showFavorites) result = result.filter(i => i.highlight.isFavorite);
 
-    if (categoryFilter !== 'all') {
-      result = result.filter(item => item.highlight.category === categoryFilter);
-    }
+    if (sortMode === 'newest') result.sort((a, b) => b.highlight.timestamp - a.highlight.timestamp);
+    if (sortMode === 'oldest') result.sort((a, b) => a.highlight.timestamp - b.highlight.timestamp);
+    if (sortMode === 'profit') result.sort((a, b) => (b.raid!.netProfit ?? 0) - (a.raid!.netProfit ?? 0));
 
-    return result.sort((a, b) => b.highlight.timestamp - a.highlight.timestamp);
-  }, [highlights, raidMap, categoryFilter, showFavorites]);
-
-  const categoryIcons = {
-    profit: <TrendingUp size={14} />,
-    kills: <Target size={14} />,
-    rare: <Package size={14} />,
-    manual: <Star size={14} />,
-  };
-
-  const categoryLabels = {
-    profit: 'Profit',
-    kills: 'Kills',
-    rare: 'Rare Loot',
-    manual: 'Manual',
-  };
+    return result;
+  }, [highlights, raidMap, sortMode, showFavorites]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Top Status Banner */}
+      <div className="hud-chip rounded-lg p-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-abi-text flex items-center gap-2">
-            <Star className="text-abi-orange" size={28} />
-            Highlights
-          </h1>
-          <p className="text-abi-text-muted text-sm mt-1">
-            Your most memorable raids
-          </p>
+          <p className="hud-label text-xs">PERSONAL COMBAT HISTORY</p>
+          <h2 className="font-orbitron text-3xl text-abi-text mt-1 glow-orange-sm">{highlights.length} Highlights Archived</h2>
         </div>
-        <Button
-          variant={showFavorites ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={() => setShowFavorites(!showFavorites)}
-        >
-          <Heart size={16} className="mr-1" /> Favorites
-        </Button>
+        <div className="flex items-center gap-6">
+          <div className="text-sm text-abi-text">
+            <p className="hud-label">Total Profit</p>
+            <p className="font-orbitron text-lg text-green-400">${formatCurrency(raids.reduce((s, r) => s + r.netProfit, 0))}</p>
+          </div>
+          <div className="text-sm text-abi-text">
+            <p className="hud-label">Total Loot</p>
+            <p className="font-orbitron text-lg text-green-400">${formatCurrency(raids.reduce((s, r) => s + r.lootValue, 0))}</p>
+          </div>
+          <div className="text-sm text-abi-text">
+            <p className="hud-label">Total Kills</p>
+            <p className="font-orbitron text-lg text-abi-orange">{raids.reduce((s, r) => s + (r.kills || 0), 0)}</p>
+          </div>
+          <div>
+            <Button variant="secondary" size="sm" onClick={() => setShowFavorites(!showFavorites)}>
+              <Heart size={14} className="mr-2" /> Favorites
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Tabs
-        tabs={[
-          { id: 'all', label: 'All' },
-          { id: 'profit', label: 'Profit', icon: <TrendingUp size={14} /> },
-          { id: 'kills', label: 'Kills', icon: <Target size={14} /> },
-          { id: 'rare', label: 'Rare', icon: <Package size={14} /> },
-          { id: 'manual', label: 'Manual', icon: <Star size={14} /> },
-        ]}
-        activeTab={categoryFilter}
-        onChange={(id) => setCategoryFilter(id as HighlightCategory)}
-      />
-
-      {/* Highlights Grid */}
-      {filteredHighlights.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredHighlights.map(({ highlight, raid }) => (
-            <Card
-              key={highlight.raidId}
-              className="p-4 cursor-pointer group"
-              hover
-              onClick={() => onRaidClick(raid.id)}
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <Badge variant="orange" size="sm">
-                  {categoryIcons[highlight.category]}
-                  <span className="ml-1">{categoryLabels[highlight.category]}</span>
-                </Badge>
-                {highlight.isFavorite && (
-                  <Heart size={16} className="text-red-400 fill-red-400" />
-                )}
-              </div>
-
-              {/* Stats */}
-              <div className="mb-3">
-                <p className={`text-2xl font-bold ${raid.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {raid.netProfit >= 0 ? '+' : ''}${formatCurrency(raid.netProfit)}
-                </p>
-                <p className="text-sm text-abi-text-muted">
-                  {raid.map} • {STATUS_ICONS[raid.status]} {raid.status}
-                </p>
-              </div>
-
-              {/* Reason */}
-              <p className="text-sm text-abi-text">{highlight.reason}</p>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-abi-border text-xs text-abi-text-dim">
-                <span>{formatDateTime(highlight.timestamp)}</span>
-                <span>{raid.kills} kills</span>
-              </div>
-
-              {/* Hover glow effect */}
-              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                <div className="absolute inset-0 bg-gradient-to-br from-abi-orange/5 to-transparent rounded-xl" />
-              </div>
-            </Card>
-          ))}
+      {/* Main Section */}
+      <div className="flex items-center justify-between">
+        <h3 className="hud-heading text-lg">HIGHLIGHT ARCHIVE</h3>
+        <div className="flex items-center gap-3 w-40">
+          <Select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as any)}
+            options={[
+              { value: 'newest', label: 'Newest First' },
+              { value: 'oldest', label: 'Oldest First' },
+              { value: 'profit', label: 'Highest Profit' },
+            ]}
+          />
         </div>
-      ) : (
-        <EmptyState
-          icon={<Star size={48} />}
-          title="No highlights yet"
-          description={
-            showFavorites
-              ? "You haven't favorited any highlights"
-              : "Raids with exceptional profit, kills, or rare loot will appear here"
-          }
-        />
+      </div>
+
+      <div className="space-y-3">
+        {filteredHighlights.length > 0 ? (
+          filteredHighlights.map(({ highlight, raid }) => (
+            <div key={highlight.raidId} className="hud-card rounded-xl p-2 flex items-center justify-between hover-glow-orange hover:scale-[1.01]">
+              <div className="flex items-center gap-3">
+                <div className="hud-icon" aria-hidden>
+                  {raid.status === 'EXTRACTED' ? (
+                    <div className="text-green-400 text-lg">●</div>
+                  ) : (
+                    <div className="text-red-500 text-lg">✖</div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-orbitron text-abi-text truncate">{raid.map} · {raid.mode}</p>
+                  <p className="text-[11px] text-abi-text-dim">{formatDateTime(highlight.timestamp)}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="hud-chip">{highlight.category.toUpperCase()}</span>
+                    {highlight.isFavorite && <span className="hud-chip">FAVORITE</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="grid grid-cols-4 gap-2 text-right hud-stats">
+                  <div>
+                    <p className="hud-label">KILLS</p>
+                    <p className="font-orbitron text-base text-abi-text">{raid.kills}</p>
+                  </div>
+                  <div>
+                    <p className="hud-label">LOOT</p>
+                    <p className="font-orbitron text-base text-green-400">${formatCurrency(raid.lootValue)}</p>
+                  </div>
+                  <div>
+                    <p className="hud-label">NET</p>
+                    <p className={`font-orbitron text-base ${raid.netProfit >= 0 ? 'text-green-400' : 'text-red-500'}`}>${formatCurrency(raid.netProfit)}</p>
+                  </div>
+                  <div>
+                    <p className="hud-label">ROI</p>
+                    <p className="font-orbitron text-base text-abi-text">{(raid.roi ?? 0).toFixed(1)}%</p>
+                  </div>
+                </div>
+
+                <button className="p-2 rounded-md hover-glow-orange" onClick={() => setDetailRaidId(raid.id)} aria-label="View details">
+                  <Eye className="text-abi-orange" />
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <EmptyState icon={<Star size={48} />} title="No highlights" description={showFavorites ? "No favorites yet" : "No highlight archive entries"} />
+        )}
+      </div>
+
+      {detailRaidId && (
+        <HighlightDetailModal raidId={detailRaidId} onClose={() => setDetailRaidId(null)} />
       )}
     </div>
   );

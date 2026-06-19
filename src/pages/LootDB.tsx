@@ -181,18 +181,18 @@ interface LootDBItemModalProps {
 function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps) {
   const [name, setName] = useState(item?.name || '');
   const [category, setCategory] = useState(item?.category || '');
-  const [rarity, setRarity] = useState<'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'red'>(item?.rarity || 'common');
-  const [marketPrice, setMarketPrice] = useState(item?.marketPrice || 0);
-  const [lowestPrice, setLowestPrice] = useState(item?.lowestPrice || 0);
+  const [rarity, setRarity] = useState<string>(item?.rarity || '');
+  const [marketPrice, setMarketPrice] = useState<number | undefined>(item?.marketPrice ?? undefined);
+  const [lowestPrice, setLowestPrice] = useState<number | undefined>(item?.lowestPrice ?? undefined);
   const [vendorName, setVendorName] = useState('');
-  const [vendorPrice, setVendorPrice] = useState(0);
+  const [vendorPrice, setVendorPrice] = useState<number | undefined>(undefined);
   const [vendorPrices, setVendorPrices] = useState(item?.vendorPrices || []);
 
   const handleAddVendorPrice = () => {
-    if (vendorName && vendorPrice > 0) {
-      setVendorPrices([...vendorPrices, { vendor: vendorName, price: vendorPrice }]);
+    if (vendorName && (vendorPrice ?? 0) > 0) {
+      setVendorPrices([...vendorPrices, { vendor: vendorName, price: vendorPrice ?? 0 }]);
       setVendorName('');
-      setVendorPrice(0);
+      setVendorPrice(undefined);
     }
   };
 
@@ -205,10 +205,10 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
       id: item?.id || `item-${Date.now()}`,
       name,
       category,
-      rarity,
-      marketPrice,
+      rarity: (rarity || 'common') as any,
+      marketPrice: marketPrice ?? 0,
       vendorPrices,
-      lowestPrice,
+      lowestPrice: lowestPrice ?? 0,
       lowestPriceHistory: item?.lowestPriceHistory || [],
       bestSellTo: '', // Would be calculated based on prices
       notes: item?.notes,

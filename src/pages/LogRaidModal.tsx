@@ -3,10 +3,10 @@ import { Modal, Button, Select, NumberInput, Input } from '../components/ui';
 import { AddAmmoModal } from './AddAmmoModal';
 import { AddConsumablesModal } from './AddConsumablesModal';
 import { MAPS, GAME_MODES } from '../data/constants';
-import { generateId, addRaid, getSessionId, getSettings } from '../utils/storage';
-import { calculateRaidEconomy, calculateGearRescue, calculateLootValue } from '../utils/economy';
-import { Swords, Package, Pill, Shield, Plus, Trash2 } from 'lucide-react';
-import type { Raid, RaidStatus, AmmoEntry, ConsumableEntry, LootItem, GearRescueData } from '../types';
+import { generateId, addRaid, getSessionId, getStoredSettings } from '../utils/storage';
+import { calculateRaidEconomy, calculateGearRescue } from '../utils/economy';
+import { Swords, Package, Pill, Shield } from 'lucide-react';
+import type { Raid, AmmoEntry, ConsumableEntry, GearRescueData } from '../types';
 
 interface LogRaidModalProps {
   isOpen: boolean;
@@ -15,17 +15,17 @@ interface LogRaidModalProps {
 }
 
 export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
-  const settings = getSettings();
+  const settings = getStoredSettings();
 
   // Form state
-  const [map, setMap] = useState(MAPS[0].id);
-  const [mode, setMode] = useState(GAME_MODES[0].id);
-  const [status, setStatus] = useState<RaidStatus>('EXTRACTED');
-  const [duration, setDuration] = useState(30);
-  const [kills, setKills] = useState(0);
-  const [deaths, setDeaths] = useState(0);
-  const [gearValue, setGearValue] = useState(0);
-  const [rescuePercentage, setRescuePercentage] = useState(0);
+  const [map, setMap] = useState('');
+  const [mode, setMode] = useState('');
+  const [status, setStatus] = useState<string>('');
+  const [duration, setDuration] = useState<number | undefined>(undefined);
+  const [kills, setKills] = useState<number | undefined>(undefined);
+  const [deaths, setDeaths] = useState<number | undefined>(undefined);
+  const [gearValue, setGearValue] = useState<number | undefined>(undefined);
+  const [rescuePercentage, setRescuePercentage] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState('');
 
   // Ammo and Consumables
@@ -33,10 +33,7 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
   const [consumables, setConsumables] = useState<ConsumableEntry[]>([]);
 
   // Loot
-  const [loot, setLoot] = useState<LootItem[]>([]);
-  const [newLootName, setNewLootName] = useState('');
-  const [newLootValue, setNewLootValue] = useState(0);
-  const [newLootQty, setNewLootQty] = useState(1);
+  const [lootValue, setLootValue] = useState<number | undefined>(undefined);
 
   // Modals
   const [showAmmoModal, setShowAmmoModal] = useState(false);
@@ -64,39 +61,22 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
     setConsumables(newConsumables);
   };
 
-  const handleAddLoot = () => {
-    if (!newLootName || newLootValue <= 0) return;
-    const newLoot: LootItem = {
-      id: generateId(),
-      name: newLootName,
-      baseValue: newLootValue,
-      quantity: newLootQty,
-    };
-    setLoot([...loot, newLoot]);
-    setNewLootName('');
-    setNewLootValue(0);
-    setNewLootQty(1);
-  };
-
-  const handleRemoveLoot = (id: string) => {
-    setLoot(loot.filter(l => l.id !== id));
-  };
-
-  const gearRescue: GearRescueData | undefined = status === 'DIED' && rescuePercentage > 0
-    ? calculateGearRescue(gearValue, rescuePercentage)
+  const gearRescue: GearRescueData | undefined = status === 'DIED' && (rescuePercentage ?? 0) > 0 && (gearValue ?? 0) > 0
+    ? calculateGearRescue(gearValue ?? 0, rescuePercentage ?? 0)
     : undefined;
 
   const raidPreview = useMemo(() => {
     const previewRaid = {
       ammo,
       consumables,
-      gearValue,
+      gearValue: gearValue ?? 0,
       gearRescue,
-      loot,
-      lootValue: calculateLootValue(loot, settings.globalTaxRate),
+      loot: [],
+      lootValue: lootValue ?? 0,
     };
-    return calculateRaidEconomy(previewRaid, settings.globalTaxRate);
-  }, [ammo, consumables, gearValue, gearRescue, loot, settings.globalTaxRate]);
+    const taxRate = settings.globalTaxRate ?? 0.10;
+    return calculateRaidEconomy(previewRaid, taxRate);
+  }, [ammo, consumables, gearValue, gearRescue, lootValue, settings]);
 
   const handleSave = () => {
     const now = Date.now();
@@ -105,21 +85,21 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
       timestamp: now,
       map: MAPS.find(m => m.id === map)?.name || map,
       mode: GAME_MODES.find(m => m.id === mode)?.name || mode,
-      status,
-      duration,
+      status: (status || 'EXTRACTED') as any,
+      duration: duration ?? 0,
       ammo,
       consumables,
-      gearValue,
+      gearValue: gearValue ?? 0,
       gearRescue,
-      loot,
-      lootValue: raidPreview.lootValue,
-      kills,
-      deaths,
+      loot: [],
+      lootValue: lootValue ?? 0,
+      kills: kills ?? 0,
+      deaths: deaths ?? 0,
       investment: raidPreview.investment,
       netProfit: raidPreview.netProfit,
       roi: raidPreview.roi,
       isHighlight: false,
-      sessionId: getSessionId(now, settings.sessionDuration),
+      sessionId: getSessionId(now, settings.sessionDuration ?? 60),
       notes: notes || undefined,
     };
 
@@ -129,19 +109,19 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
   };
 
   const handleClose = () => {
-    // Reset form
-    setMap(MAPS[0].id);
-    setMode(GAME_MODES[0].id);
-    setStatus('EXTRACTED');
-    setDuration(30);
-    setKills(0);
-    setDeaths(0);
-    setGearValue(0);
-    setRescuePercentage(0);
+    // Reset form to empty values (no defaults)
+    setMap('');
+    setMode('');
+    setStatus('');
+    setDuration(undefined);
+    setKills(undefined);
+    setDeaths(undefined);
+    setGearValue(undefined);
+    setRescuePercentage(undefined);
     setNotes('');
     setAmmo([]);
     setConsumables([]);
-    setLoot([]);
+    setLootValue(undefined);
     onClose();
   };
 
@@ -158,21 +138,25 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
                 label="Map"
                 value={map}
                 onChange={(e) => setMap(e.target.value)}
-                options={MAPS.map(m => ({ value: m.id, label: m.name }))}
+                options={[
+                  { value: '', label: 'Select a map' },
+                  ...MAPS.map(m => ({ value: m.id, label: m.name })),
+                ]}
               />
               <Select
                 label="Mode"
                 value={mode}
                 onChange={(e) => setMode(e.target.value)}
-                options={GAME_MODES.map(m => ({ value: m.id, label: m.name }))}
+                options={[{ value: '', label: 'Select a mode' }, ...GAME_MODES.map(m => ({ value: m.id, label: m.name }))]}
               />
             </div>
 
             <Select
               label="Status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as RaidStatus)}
+              onChange={(e) => setStatus(e.target.value)}
               options={[
+                { value: '', label: 'Select status' },
                 { value: 'EXTRACTED', label: 'Extracted' },
                 { value: 'DIED', label: 'Died' },
                 { value: 'FLED', label: 'Fled' },
@@ -212,7 +196,7 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
                 onChange={setGearValue}
                 min={0}
               />
-              {status === 'DIED' && gearValue > 0 && (
+              {status === 'DIED' && (gearValue ?? 0) > 0 && (
                 <div className="mt-3">
                   <NumberInput
                     label="Rescue Percentage"
@@ -301,50 +285,18 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
               <h4 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Package size={16} /> Loot
               </h4>
-              <div className="flex gap-2 mb-3">
-                <Input
-                  placeholder="Item name"
-                  value={newLootName}
-                  onChange={(e) => setNewLootName(e.target.value)}
-                  className="flex-1"
-                />
+              <div className="space-y-3">
                 <NumberInput
-                  value={newLootValue}
-                  onChange={setNewLootValue}
+                  label="Total Loot Value"
+                  value={lootValue}
+                  onChange={setLootValue}
                   min={0}
-                  className="w-24"
+                  className="w-full"
                 />
-                <NumberInput
-                  value={newLootQty}
-                  onChange={setNewLootQty}
-                  min={1}
-                  max={99}
-                  className="w-16"
-                />
-                <Button size="sm" variant="primary" onClick={handleAddLoot}>
-                  <Plus size={16} />
-                </Button>
+                <p className="text-abi-text-dim text-sm">
+                  Enter the total rollout loot value for this raid. Item-level detail is now stored as a single aggregated value.
+                </p>
               </div>
-              {loot.length > 0 ? (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {loot.map(l => (
-                    <div key={l.id} className="flex items-center justify-between text-sm">
-                      <span className="text-abi-text-muted">{l.name} x{l.quantity}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-abi-text">${(l.baseValue * l.quantity).toLocaleString()}</span>
-                        <button
-                          onClick={() => handleRemoveLoot(l.id)}
-                          className="p-0.5 text-abi-text-muted hover:text-red-400 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-abi-text-dim text-sm">No loot added</p>
-              )}
             </div>
           </div>
         </div>

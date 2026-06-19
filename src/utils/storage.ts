@@ -1,4 +1,4 @@
-import type { Raid, Session, Highlight, LootDBItem, AppSettings, AnalyticsCache } from '../types';
+import type { Raid, Session, Highlight, LootDBItem, LootItem, AppSettings, AnalyticsCache } from '../types';
 
 const STORAGE_KEYS = {
   RAIDS: 'abi_raids',
@@ -152,7 +152,15 @@ export function getSettings(): AppSettings {
   return getItem<AppSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
 }
 
-export function saveSettings(settings: AppSettings): void {
+// Returns only stored settings without applying defaults — used to avoid
+// pre-populating UI with default values. UI should fallback to DEFAULT_SETTINGS
+// for runtime calculations if needed.
+export function getStoredSettings(): Partial<AppSettings> {
+  return getItem<Partial<AppSettings>>(STORAGE_KEYS.SETTINGS, {} as Partial<AppSettings>);
+}
+
+// Persist only explicit user-provided settings (do not inject defaults).
+export function saveSettings(settings: Partial<AppSettings>): void {
   setItem(STORAGE_KEYS.SETTINGS, settings);
 }
 
@@ -209,6 +217,15 @@ export function migrateRaidData(raid: Partial<Raid> & Record<string, unknown>): 
     raid.consumables = [];
   }
 
+  // Normalize loot values and quantities for backward compatibility
+  const normalizedLoot = Array.isArray(raid.loot)
+    ? raid.loot.map(item => ({
+        ...item,
+        baseValue: Number((item as Partial<LootItem>).baseValue) || 0,
+        quantity: Number((item as Partial<LootItem>).quantity) || 0,
+      }))
+    : [];
+
   // Calculate investment if missing
   if (typeof raid.investment !== 'number') {
     raid.investment = 0;
@@ -240,8 +257,8 @@ export function migrateRaidData(raid: Partial<Raid> & Record<string, unknown>): 
     consumables: raid.consumables || [],
     gearValue: raid.gearValue || 0,
     gearRescue: raid.gearRescue,
-    loot: raid.loot || [],
-    lootValue: raid.lootValue || 0,
+    loot: normalizedLoot,
+    lootValue: typeof raid.lootValue === 'number' ? raid.lootValue : Number(raid.lootValue) || 0,
     kills: raid.kills || 0,
     deaths: raid.deaths || 0,
     assists: raid.assists,

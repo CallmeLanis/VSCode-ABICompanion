@@ -1,18 +1,17 @@
-import { useMemo } from 'react';
-import {
-  Swords,
-  TrendingUp,
-  DollarSign,
-  Package,
-  Flame,
-  Star,
-  Target,
-  AlertTriangle,
-} from 'lucide-react';
-import { StatCard, Card, Badge, ProgressBar } from '../components/ui';
-import { getAnalytics, calculateEconomyBreakdown, calculateGearAnalytics } from '../utils/analytics';
+import { useMemo, useState } from 'react';
+import { Radar, Command, ShieldCheck, ArrowRight, ArrowLeft, Cpu } from 'lucide-react';
+import { getAnalytics, calculateEconomyBreakdown } from '../utils/analytics';
+import { getRaids, getRaidById } from '../utils/storage';
 import { formatCurrency, formatPercentage } from '../utils/economy';
 import type { Page } from '../components/Navigation';
+import {
+  StatCard,
+  SitrepCard,
+  HighlightCard,
+  SessionCard,
+  EconomyCard,
+  RecentRaidCard,
+} from '../components/dashboard/DashboardWidgets';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
@@ -20,240 +19,144 @@ interface DashboardProps {
   onSessionClick: (sessionId: string) => void;
 }
 
-export function Dashboard({ onNavigate, onRaidClick, onSessionClick }: DashboardProps) {
+export function Dashboard({ onRaidClick, onSessionClick }: DashboardProps) {
   const analytics = useMemo(() => getAnalytics(), []);
   const economyBreakdown = useMemo(() => calculateEconomyBreakdown(), []);
-  const gearAnalytics = useMemo(() => calculateGearAnalytics(), []);
+  const allRaids = useMemo(() => getRaids(), []);
+  const recentRaids = useMemo(() =>
+    allRaids
+      .slice()
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 6)
+      .map((raid) => ({
+        id: raid.id,
+        date: new Date(raid.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        name: raid.map,
+        status: raid.status,
+        profit: raid.netProfit,
+      })),
+    [allRaids]
+  );
+
+  const highlightRaid = analytics.latestHighlight ? getRaidById(analytics.latestHighlight.raidId) : null;
+  const bestSession = analytics.bestSession;
+  const timestamp = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const [viewMode, setViewMode] = useState('OPS');
+
+  const averageRaidNet = analytics.totalRaids > 0
+    ? analytics.lifetimeProfit / analytics.totalRaids
+    : 0;
+
+  const highestProfit = allRaids.reduce((max, raid) => Math.max(max, raid.netProfit), 0);
+  const worstLoss = allRaids.reduce((min, raid) => Math.min(min, raid.netProfit), 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-abi-text">Dashboard</h1>
-          <p className="text-abi-text-muted text-sm mt-1">Your tactical overview</p>
-        </div>
-      </div>
+    <div className="space-y-6 dashboard-shell">
+      <SitrepCard
+        status="EXTRACTION READY"
+        timestamp={timestamp}
+        viewMode={viewMode}
+        onViewChange={setViewMode}
+      />
 
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
         <StatCard
           label="Total Raids"
           value={analytics.totalRaids}
-          icon={<Swords size={24} />}
-          className="animate-float"
+          subValue="Operations logged"
+          accent="text-abi-orange"
+          icon={<Radar size={24} />}
         />
         <StatCard
           label="Extraction Rate"
-          value={formatPercentage(analytics.extractionRate)}
+          value={`${formatPercentage(analytics.extractionRate)}`}
+          subValue="Successful extractions"
           trend={analytics.extractionRate >= 50 ? 'up' : 'down'}
-          trendValue="of raids"
-          icon={<Target size={24} />}
-        />
-        <StatCard
-          label="Average ROI"
-          value={formatPercentage(analytics.averageROI)}
-          subValue="per raid"
-          icon={<TrendingUp size={24} />}
-          trend={analytics.averageROI >= 0 ? 'up' : 'down'}
+          icon={<ShieldCheck size={24} />}
         />
         <StatCard
           label="Lifetime Profit"
           value={`$${formatCurrency(analytics.lifetimeProfit)}`}
-          icon={<DollarSign size={24} />}
-          glow={analytics.lifetimeProfit > 0}
+          subValue="Cumulative net"
+          accent="text-green-400"
+          icon={<Command size={24} />}
         />
-      </div>
-
-      {/* Secondary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Average Loot Value"
+          label="Average ROI"
+          value={`${formatPercentage(analytics.averageROI)}`}
+          subValue="Per raid"
+          trend={analytics.averageROI >= 0 ? 'up' : 'down'}
+          icon={<Cpu size={24} />}
+        />
+        <StatCard
+          label="Avg Loot Value"
           value={`$${formatCurrency(analytics.averageLootValue)}`}
-          icon={<Package size={20} />}
-        />
-        <StatCard
-          label="Total Extracted"
-          value={`$${formatCurrency(analytics.totalExtracted)}`}
-          icon={<DollarSign size={20} />}
-        />
-        <StatCard
-          label="Dry Streak"
-          value={analytics.dryStreak}
-          subValue="raids without extraction"
-          icon={<Flame size={20} />}
-          trend={analytics.dryStreak > 3 ? 'down' : 'neutral'}
+          subValue="Per extraction"
+          icon={<ArrowRight size={24} />}
         />
         <StatCard
           label="Best Raid Today"
           value={analytics.bestRaidToday ? `$${formatCurrency(analytics.bestRaidToday.netProfit)}` : 'N/A'}
-          subValue={analytics.bestRaidToday?.map}
-          icon={<Star size={20} />}
-          onClick={analytics.bestRaidToday ? () => onRaidClick(analytics.bestRaidToday!.id) : undefined}
+          subValue={analytics.bestRaidToday?.map || 'No raid'}
+          accent={analytics.bestRaidToday ? 'text-green-400' : 'text-abi-text-muted'}
+          icon={<StarIcon />}
+        />
+        <StatCard
+          label="Dry Streak"
+          value={analytics.dryStreak}
+          subValue="Raids without extraction"
+          trend={analytics.dryStreak > 3 ? 'down' : 'up'}
+          icon={<ArrowLeft size={24} />}
+        />
+        <StatCard
+          label="Extracted"
+          value={`$${formatCurrency(analytics.totalExtracted)}`}
+          subValue="Loot value extracted"
+          icon={<PackageIcon />}
         />
       </div>
 
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Latest Highlight */}
-        <Card className="p-4" hover={!!analytics.latestHighlight}>
-          <div className="flex items-center gap-2 mb-3">
-            <Star size={16} className="text-abi-orange" />
-            <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-              Latest Highlight
-            </h3>
-          </div>
-          {analytics.latestHighlight ? (
-            <div
-              className="cursor-pointer"
-              onClick={() => onRaidClick(analytics.latestHighlight!.raidId)}
-            >
-              <Badge variant="orange" size="sm">
-                {analytics.latestHighlight.category}
-              </Badge>
-              <p className="text-abi-text mt-2">{analytics.latestHighlight.reason}</p>
-            </div>
-          ) : (
-            <p className="text-abi-text-dim">No highlights yet</p>
-          )}
-        </Card>
-
-        {/* Best Session */}
-        <Card className="p-4" hover={!!analytics.bestSession}>
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp size={16} className="text-abi-orange" />
-            <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-              Best Session
-            </h3>
-          </div>
-          {analytics.bestSession ? (
-            <div
-              className="cursor-pointer"
-              onClick={() => onSessionClick(analytics.bestSession!.id)}
-            >
-              <p className="text-lg font-bold text-abi-text">
-                ${formatCurrency(analytics.bestSession.totalProfit)}
-              </p>
-              <p className="text-sm text-abi-text-muted">
-                {analytics.bestSession.raidCount} raids • {formatPercentage(analytics.bestSession.extractionRate)} extract
-              </p>
-            </div>
-          ) : (
-            <p className="text-abi-text-dim">No sessions yet</p>
-          )}
-        </Card>
-
-        {/* Economy Breakdown */}
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign size={16} className="text-abi-orange" />
-            <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-              Spend Breakdown
-            </h3>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-abi-text-muted">Ammo</span>
-              <span className="text-sm text-abi-text">${formatCurrency(economyBreakdown.ammoSpent)}</span>
-            </div>
-            <ProgressBar value={economyBreakdown.ammoSpent} max={economyBreakdown.totalSpend || 1} variant="orange" size="sm" />
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-abi-text-muted">Consumables</span>
-              <span className="text-sm text-abi-text">${formatCurrency(economyBreakdown.consumablesSpent)}</span>
-            </div>
-            <ProgressBar value={economyBreakdown.consumablesSpent} max={economyBreakdown.totalSpend || 1} variant="info" size="sm" />
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-abi-text-muted">Gear Lost</span>
-              <span className="text-sm text-abi-text">${formatCurrency(economyBreakdown.gearLost)}</span>
-            </div>
-            <ProgressBar value={economyBreakdown.gearLost} max={economyBreakdown.totalSpend || 1} variant="danger" size="sm" />
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2">
+          <HighlightCard
+            category={analytics.latestHighlight?.category.toUpperCase() || 'NONE'}
+            reason={analytics.latestHighlight?.reason || 'No highlight events available.'}
+            profit={highlightRaid ? `$${formatCurrency(highlightRaid.netProfit)}` : '$0'}
+            kills={highlightRaid?.kills ?? 0}
+            map={highlightRaid?.map ?? 'Unknown'}
+            onInspect={() => highlightRaid && onRaidClick(highlightRaid.id)}
+          />
+        </div>
+        <SessionCard
+          label="Best Session"
+          totalProfit={bestSession ? `$${formatCurrency(bestSession.totalProfit)}` : 'N/A'}
+          raids={bestSession?.raidCount ?? 0}
+          roi={bestSession ? `${formatPercentage(bestSession.extractionRate)}` : '0%'}
+          onInspect={() => bestSession && onSessionClick(bestSession.id)}
+        />
       </div>
 
-      {/* Gear Analytics */}
-      <Card className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle size={16} className="text-abi-orange" />
-          <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-            Gear Analytics
-          </h3>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2">
+          <EconomyCard
+            lifetimeProfit={`$${formatCurrency(analytics.lifetimeProfit)}`}
+            ammoSpent={`$${formatCurrency(economyBreakdown.ammoSpent)}`}
+            consumablesSpent={`$${formatCurrency(economyBreakdown.consumablesSpent)}`}
+            averageNet={`$${formatCurrency(averageRaidNet)}`}
+            highestProfit={`$${formatCurrency(highestProfit)}`}
+            worstLoss={`$${formatCurrency(Math.abs(worstLoss))}`}
+          />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-          <div>
-            <p className="text-xs text-abi-text-muted mb-1">Total Brought</p>
-            <p className="text-lg font-bold text-abi-text">
-              ${formatCurrency(gearAnalytics.totalGearValueBrought)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-abi-text-muted mb-1">Total Lost</p>
-            <p className="text-lg font-bold text-red-400">
-              ${formatCurrency(gearAnalytics.totalGearValueLost)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-abi-text-muted mb-1">Total Rescued</p>
-            <p className="text-lg font-bold text-green-400">
-              ${formatCurrency(gearAnalytics.totalGearValueRescued)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-abi-text-muted mb-1">Recovery Rate</p>
-            <p className="text-lg font-bold text-abi-text">
-              {formatPercentage(gearAnalytics.recoveryRate)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-abi-text-muted mb-1">Best Rescue</p>
-            <p className="text-lg font-bold text-green-400">
-              {formatPercentage(gearAnalytics.bestRescuePercentage)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-abi-text-muted mb-1">Worst Rescue</p>
-            <p className="text-lg font-bold text-red-400">
-              {formatPercentage(gearAnalytics.worstRescuePercentage)}
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Quick Navigation */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <button
-          onClick={() => onNavigate('raids')}
-          className="p-4 rounded-xl bg-abi-bg-card border border-abi-border hover:border-abi-orange/50 transition-all duration-200 text-left group"
-        >
-          <Swords size={24} className="text-abi-text-muted group-hover:text-abi-orange transition-colors" />
-          <p className="mt-2 font-semibold text-abi-text">Raid Tracker</p>
-          <p className="text-sm text-abi-text-dim">Log and manage raids</p>
-        </button>
-        <button
-          onClick={() => onNavigate('sessions')}
-          className="p-4 rounded-xl bg-abi-bg-card border border-abi-border hover:border-abi-orange/50 transition-all duration-200 text-left group"
-        >
-          <Star size={24} className="text-abi-text-muted group-hover:text-abi-orange transition-colors" />
-          <p className="mt-2 font-semibold text-abi-text">Sessions</p>
-          <p className="text-sm text-abi-text-dim">Track play sessions</p>
-        </button>
-        <button
-          onClick={() => onNavigate('lootdb')}
-          className="p-4 rounded-xl bg-abi-bg-card border border-abi-border hover:border-abi-orange/50 transition-all duration-200 text-left group"
-        >
-          <Package size={24} className="text-abi-text-muted group-hover:text-abi-orange transition-colors" />
-          <p className="mt-2 font-semibold text-abi-text">LootDB</p>
-          <p className="text-sm text-abi-text-dim">Item database</p>
-        </button>
-        <button
-          onClick={() => onNavigate('economy')}
-          className="p-4 rounded-xl bg-abi-bg-card border border-abi-border hover:border-abi-orange/50 transition-all duration-200 text-left group"
-        >
-          <TrendingUp size={24} className="text-abi-text-muted group-hover:text-abi-orange transition-colors" />
-          <p className="mt-2 font-semibold text-abi-text">Economy</p>
-          <p className="text-sm text-abi-text-dim">Detailed analytics</p>
-        </button>
+        <RecentRaidCard raids={recentRaids} onRaidClick={onRaidClick} />
       </div>
     </div>
   );
+}
+
+function StarIcon() {
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-abi-orange"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" fill="currentColor"/></svg>;
+}
+
+function PackageIcon() {
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-abi-orange"><path d="M3 7l9-4 9 4-9 4-9-4zm0 2.18l9 4 9-4V17a2 2 0 0 1-2 2h-2v-6.5l-5 2.22-5-2.22V19H5a2 2 0 0 1-2-2V9.18z" fill="currentColor"/></svg>;
 }
