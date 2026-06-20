@@ -12,43 +12,26 @@ export const MAPS: MapData[] = [
 
 // Game Modes
 export const GAME_MODES: GameMode[] = [
-  { id: 'standard', name: 'Standard', shortName: 'STD' },
-  { id: 'hardcore', name: 'Hardcore', shortName: 'HC' },
-  { id: 'coop', name: 'Co-op', shortName: 'Coop' },
+  { id: 'normal', name: 'Normal', shortName: 'Nor' },
+  { id: 'lockdown', name: 'Lockdown', shortName: 'Lock' },
+  { id: 'forbidden', name: 'Forbidden', shortName: 'Forb' },
 ];
 
-// Ammo Calibers
+// Ammo Calibers - Standardized List
 export const AMMO_CALIBERS: AmmoCaliber[] = [
   {
-    id: '9mm',
-    name: '9x19mm',
-    tiers: [
-      { id: '9mm_pst', name: 'PST gzh', costPerRound: 50 },
-      { id: '9mm_ap', name: 'AP 6.3', costPerRound: 120 },
-      { id: '9mm_rIP', name: 'RIP', costPerRound: 180 },
-    ],
-  },
-  {
-    id: '762x25',
-    name: '7.62x25mm',
-    tiers: [
-      { id: '762x25_pst', name: 'Pst gzh', costPerRound: 60 },
-      { id: '762x25_lrnpc', name: 'LRNPC', costPerRound: 100 },
-    ],
-  },
-  {
     id: '545x39',
-    name: '5.45x39mm',
+    name: '5.45x39',
     tiers: [
-      { id: '545_ps', name: 'PS gs', costPerRound: 150 },
-      { id: '545_bp', name: 'BP gs', costPerRound: 350 },
-      { id: '545_bt', name: 'BT gs', costPerRound: 280 },
-      { id: '545_bs', name: 'BS gs', costPerRound: 450 },
+      { id: '545_ps', name: 'PS', costPerRound: 150 },
+      { id: '545_bp', name: 'BP', costPerRound: 350 },
+      { id: '545_bt', name: 'BT', costPerRound: 280 },
+      { id: '545_bs', name: 'BS', costPerRound: 450 },
     ],
   },
   {
     id: '556x45',
-    name: '5.56x45mm',
+    name: '5.56x45',
     tiers: [
       { id: '556_m855', name: 'M855', costPerRound: 140 },
       { id: '556_m856a1', name: 'M856A1', costPerRound: 320 },
@@ -56,17 +39,43 @@ export const AMMO_CALIBERS: AmmoCaliber[] = [
     ],
   },
   {
-    id: '762x39',
-    name: '7.62x39mm',
+    id: '57x28',
+    name: '5.7x28',
     tiers: [
-      { id: '762_ps', name: 'PS gzh', costPerRound: 130 },
-      { id: '762_bp', name: 'BP gzh', costPerRound: 350 },
-      { id: '762_ap', name: 'AP gzh', costPerRound: 550 },
+      { id: '57_r37f', name: 'R37F', costPerRound: 200 },
+      { id: '57_ss198', name: 'SS198', costPerRound: 350 },
+      { id: '57_ss190', name: 'SS190', costPerRound: 400 },
+    ],
+  },
+  {
+    id: '58x42',
+    name: '5.8x42',
+    tiers: [
+      { id: '58_dvc12', name: 'DVC12', costPerRound: 300 },
+      { id: '58_m855a1', name: 'M855A1', costPerRound: 250 },
+      { id: '58_dvp88', name: 'DVP88', costPerRound: 400 },
+    ],
+  },
+  {
+    id: '762x25',
+    name: '7.62x25',
+    tiers: [
+      { id: '762x25_pst', name: 'PST', costPerRound: 60 },
+      { id: '762x25_lrnpc', name: 'LRNPC', costPerRound: 100 },
+    ],
+  },
+  {
+    id: '762x39',
+    name: '7.62x39',
+    tiers: [
+      { id: '762_ps', name: 'PS', costPerRound: 130 },
+      { id: '762_bp', name: 'BP', costPerRound: 350 },
+      { id: '762_ap', name: 'AP', costPerRound: 550 },
     ],
   },
   {
     id: '762x51',
-    name: '7.62x51mm',
+    name: '7.62x51',
     tiers: [
       { id: '762x51_m80', name: 'M80', costPerRound: 200 },
       { id: '762x51_m61', name: 'M61', costPerRound: 480 },
@@ -74,17 +83,26 @@ export const AMMO_CALIBERS: AmmoCaliber[] = [
     ],
   },
   {
-    id: '762x54r',
-    name: '7.62x54R',
+    id: '762x54',
+    name: '7.62x54',
     tiers: [
-      { id: '762x54r_lps', name: 'LPS gzh', costPerRound: 180 },
-      { id: '762x54r_bt', name: 'BT gzh', costPerRound: 380 },
-      { id: '762x54r_7bt1', name: '7BT1', costPerRound: 500 },
+      { id: '762x54_lps', name: 'LPS', costPerRound: 180 },
+      { id: '762x54_bt', name: 'BT', costPerRound: 380 },
+      { id: '762x54_7bt1', name: '7BT1', costPerRound: 500 },
+    ],
+  },
+  {
+    id: '9x19',
+    name: '9x19',
+    tiers: [
+      { id: '9mm_pst', name: 'PST', costPerRound: 50 },
+      { id: '9mm_ap', name: 'AP', costPerRound: 120 },
+      { id: '9mm_rip', name: 'RIP', costPerRound: 180 },
     ],
   },
   {
     id: '939',
-    name: '9x39mm',
+    name: '9x39',
     tiers: [
       { id: '939_sp5', name: 'SP-5', costPerRound: 250 },
       { id: '939_sp6', name: 'SP-6', costPerRound: 450 },
@@ -92,13 +110,11 @@ export const AMMO_CALIBERS: AmmoCaliber[] = [
     ],
   },
   {
-    id: '12g',
-    name: '12/70',
+    id: '44magnum',
+    name: '.44 Magnum',
     tiers: [
-      { id: '12g_buck', name: 'Buckshot', costPerRound: 80 },
-      { id: '12g_slug', name: 'Slug', costPerRound: 120 },
-      { id: '12g_flechette', name: 'Flechette', costPerRound: 180 },
-      { id: '12g_ap20', name: 'AP-20', costPerRound: 350 },
+      { id: '44_fmj', name: 'FMJ', costPerRound: 300 },
+      { id: '44_ap', name: 'AP', costPerRound: 600 },
     ],
   },
   {
@@ -107,7 +123,25 @@ export const AMMO_CALIBERS: AmmoCaliber[] = [
     tiers: [
       { id: '45acp_fmj', name: 'FMJ', costPerRound: 70 },
       { id: '45acp_ap', name: 'AP', costPerRound: 200 },
-      { id: '45acp RIP', name: 'RIP', costPerRound: 250 },
+      { id: '45acp_rip', name: 'RIP', costPerRound: 250 },
+    ],
+  },
+  {
+    id: '338lapua',
+    name: '.338 Lapua',
+    tiers: [
+      { id: '338_fmj', name: 'FMJ', costPerRound: 800 },
+      { id: '338_ap20', name: 'AP20', costPerRound: 1200 },
+    ],
+  },
+  {
+    id: '12g',
+    name: '12 Gauge',
+    tiers: [
+      { id: '12g_buck', name: 'Buckshot', costPerRound: 80 },
+      { id: '12g_slug', name: 'Slug', costPerRound: 120 },
+      { id: '12g_flechette', name: 'Flechette', costPerRound: 180 },
+      { id: '12g_ap20', name: 'AP-20', costPerRound: 350 },
     ],
   },
 ];

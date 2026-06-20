@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Modal, Button } from '../components/ui';
+import { useState, useMemo } from 'react';
+import { Modal, Button, Select } from '../components/ui';
 import { AMMO_CALIBERS } from '../data/constants';
 import { generateId } from '../utils/storage';
 import { Plus, Trash2, ChevronRight } from 'lucide-react';
@@ -14,33 +14,43 @@ interface AddAmmoModalProps {
 
 export function AddAmmoModal({ isOpen, onClose, onSave, initialAmmo = [] }: AddAmmoModalProps) {
   const [ammo, setAmmo] = useState<AmmoEntry[]>(initialAmmo);
-  const [selectedCaliber, setSelectedCaliber] = useState<string | null>(null);
-  const [quickAdd, setQuickAdd] = useState<{ tier: string; quantity?: number }>({ tier: '', quantity: undefined });
+  const [selectedCaliber, setSelectedCaliber] = useState<string>('');
+  const [selectedTier, setSelectedTier] = useState<string>('');
+  const [quantity, setQuantity] = useState<number>(1);
 
-  const handleAddAmmo = (tier: AmmoTier, caliber: string, quantity: number) => {
+  const handleAddAmmo = () => {
+    if (!selectedCaliber || !selectedTier || !quantity) return;
+    
+    const caliberData = AMMO_CALIBERS.find(c => c.id === selectedCaliber);
+    if (!caliberData) return;
+    
+    const tierData = caliberData.tiers.find(t => t.id === selectedTier);
+    if (!tierData) return;
+
     const newAmmo: AmmoEntry = {
       id: generateId(),
-      caliber: caliber,
-      tier: tier.name,
+      caliber: caliberData.name,
+      tier: tierData.name,
       quantity: quantity,
-      costPerRound: tier.costPerRound,
-      totalCost: tier.costPerRound * quantity,
+      costPerRound: tierData.costPerRound,
+      totalCost: tierData.costPerRound * quantity,
     };
     setAmmo([...ammo, newAmmo]);
-    setQuickAdd({ tier: '', quantity: 1 });
+    setSelectedTier('');
+    setQuantity(1);
   };
 
   const handleRemoveAmmo = (id: string) => {
     setAmmo(ammo.filter(a => a.id !== id));
   };
 
-  const handleUpdateQuantity = (id: string, quantity: number) => {
+  const handleUpdateQuantity = (id: string, newQuantity: number) => {
     setAmmo(ammo.map(a => {
       if (a.id === id) {
         return {
           ...a,
-          quantity,
-          totalCost: a.costPerRound * quantity,
+          quantity: newQuantity,
+          totalCost: a.costPerRound * newQuantity,
         };
       }
       return a;
@@ -54,132 +64,120 @@ export function AddAmmoModal({ isOpen, onClose, onSave, initialAmmo = [] }: AddA
 
   const totalCost = ammo.reduce((sum, a) => sum + a.totalCost, 0);
 
+  // Get tier options for selected caliber
+  const getTierOptions = () => {
+    if (!selectedCaliber) return [];
+    const caliberData = AMMO_CALIBERS.find(c => c.id === selectedCaliber);
+    if (!caliberData) return [];
+    return caliberData.tiers.map(t => ({ value: t.id, label: `${t.name} ($${t.costPerRound}/round)` }));
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Ammo" size="xl">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[60vh]">
-        {/* Left: Caliber/Tier Browser */}
-        <div className="border border-abi-border rounded-lg overflow-hidden flex flex-col">
-          <div className="px-4 py-3 bg-abi-bg border-b border-abi-border">
-            <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-              Ammo Browser
-            </h3>
+    <Modal isOpen={isOpen} onClose={onClose} title="Add Ammo" size="md">
+      <div className="space-y-4">
+        {/* Caliber Selection */}
+        <Select
+          label="CALIBER"
+          value={selectedCaliber}
+          onChange={(e) => {
+            setSelectedCaliber(e.target.value);
+            setSelectedTier(''); // Reset tier when caliber changes
+          }}
+          options={[
+            { value: '', label: 'Select caliber' },
+            ...AMMO_CALIBERS.map(c => ({ value: c.id, label: c.name }))
+          ]}
+        />
+
+        {/* Tier Selection (hidden until caliber selected) */}
+        {selectedCaliber && (
+          <Select
+            label="TIER"
+            value={selectedTier}
+            onChange={(e) => setSelectedTier(e.target.value)}
+            options={[
+              { value: '', label: 'Select tier' },
+              ...getTierOptions()
+            ]}
+          />
+        )}
+
+        {/* Quantity */}
+        {selectedTier && (
+          <div>
+            <label className="block text-sm text-abi-text-muted mb-2">QUANTITY</label>
+            <input
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+              className="w-full px-3 py-2 bg-abi-bg border border-abi-border rounded-lg text-abi-text"
+            />
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {AMMO_CALIBERS.map(caliber => (
-              <div key={caliber.id} className="border-b border-abi-border">
-                <button
-                  onClick={() => setSelectedCaliber(selectedCaliber === caliber.id ? null : caliber.id)}
-                  className={`
-                    w-full px-4 py-3 flex items-center justify-between
-                    transition-colors duration-200
-                    ${selectedCaliber === caliber.id ? 'bg-abi-bg-hover' : 'hover:bg-abi-bg-hover/50'}
-                  `}
+        )}
+
+        {/* Add Button */}
+        {selectedTier && (
+          <Button
+            variant="primary"
+            onClick={handleAddAmmo}
+            className="w-full"
+            glow
+          >
+            <Plus size={16} className="mr-1" /> Add Ammo
+          </Button>
+        )}
+
+        {/* Selected Ammo List */}
+        {ammo.length > 0 && (
+          <div className="border border-abi-border rounded-lg overflow-hidden">
+            <div className="px-4 py-3 bg-abi-bg border-b border-abi-border flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
+                Selected ({ammo.length})
+              </h3>
+              <span className="text-sm text-abi-orange font-bold">
+                ${totalCost.toLocaleString()}
+              </span>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {ammo.map(a => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-3 p-3 border-b border-abi-border last:border-0"
                 >
-                  <span className="text-sm font-medium text-abi-text">{caliber.name}</span>
-                  <ChevronRight
-                    size={16}
-                    className={`text-abi-text-muted transition-transform ${selectedCaliber === caliber.id ? 'rotate-90' : ''}`}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-abi-text">{a.caliber}</p>
+                    <p className="text-xs text-abi-text-dim">{a.tier}</p>
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    value={a.quantity}
+                    onChange={(e) => handleUpdateQuantity(a.id, parseInt(e.target.value) || 1)}
+                    className="w-20 px-2 py-1 text-sm bg-abi-bg border border-abi-border rounded text-abi-text text-center"
                   />
-                </button>
-                {selectedCaliber === caliber.id && (
-                  <div className="bg-abi-bg-elevated px-4 py-2 space-y-2">
-                    {caliber.tiers.map(tier => (
-                      <div key={tier.id} className="flex items-center justify-between py-2 border-b border-abi-border last:border-0">
-                        <div>
-                          <p className="text-sm text-abi-text">{tier.name}</p>
-                          <p className="text-xs text-abi-text-dim">${tier.costPerRound}/round</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={1}
-                            value={quickAdd.tier === tier.id && quickAdd.quantity !== undefined ? quickAdd.quantity : ''}
-                            onChange={(e) => {
-                              const parsed = parseInt(e.target.value);
-                              setQuickAdd({ tier: tier.id, quantity: Number.isNaN(parsed) ? undefined : parsed });
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setQuickAdd({ tier: tier.id, quantity: quickAdd.tier === tier.id ? quickAdd.quantity : undefined });
-                            }}
-                            className="w-16 px-2 py-1 text-sm bg-abi-bg border border-abi-border rounded text-abi-text"
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const qty = quickAdd.tier === tier.id && quickAdd.quantity ? quickAdd.quantity : 1;
-                              handleAddAmmo(tier, caliber.name, qty);
-                            }}
-                            className="px-2 py-1 rounded bg-abi-orange/20 text-abi-orange hover:bg-abi-orange hover:text-white transition-colors"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: Selected Ammo */}
-        <div className="border border-abi-border rounded-lg overflow-hidden flex flex-col">
-          <div className="px-4 py-3 bg-abi-bg border-b border-abi-border flex justify-between items-center">
-            <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-              Selected Ammo ({ammo.length})
-            </h3>
-            <span className="text-sm text-abi-orange">
-              ${totalCost.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {ammo.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-abi-text-dim text-sm">
-                No ammo selected
-              </div>
-            ) : (
-              <div className="space-y-2 p-3">
-                {ammo.map(a => (
-                  <div
-                    key={a.id}
-                    className="flex items-center gap-3 p-2 bg-abi-bg rounded-lg border border-abi-border"
+                  <p className="text-sm text-abi-orange w-20 text-right">
+                    ${a.totalCost.toLocaleString()}
+                  </p>
+                  <button
+                    onClick={() => handleRemoveAmmo(a.id)}
+                    className="p-1 text-abi-text-muted hover:text-red-400 transition-colors"
                   >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-abi-text">{a.caliber}</p>
-                      <p className="text-xs text-abi-text-dim">{a.tier}</p>
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      value={a.quantity}
-                      onChange={(e) => handleUpdateQuantity(a.id, parseInt(e.target.value) || 1)}
-                      className="w-20 px-2 py-1 text-sm bg-abi-bg-elevated border border-abi-border rounded text-abi-text text-center"
-                    />
-                    <p className="text-sm text-abi-orange w-16 text-right">
-                      ${a.totalCost.toLocaleString()}
-                    </p>
-                    <button
-                      onClick={() => handleRemoveAmmo(a.id)}
-                      className="p-1 text-abi-text-muted hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Footer */}
-      <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-abi-border">
-        <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" onClick={handleSave} glow>
-          Save Ammo
-        </Button>
+        {/* Footer */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-abi-border">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={handleSave} glow>
+            Save Ammo
+          </Button>
+        </div>
       </div>
     </Modal>
   );

@@ -1,0 +1,166 @@
+{
+  "raids": [
+    {
+      "id": "raid-1719887280000-abc123",
+      "timestamp": 1719887280000,
+      "map": "Streets of Tarkov",
+      "mode": "Standard",
+      "status": "EXTRACTED",
+      "duration": 45,
+      "ammo": [
+        {
+          "id": "ammo-1",
+          "caliber": "7.62x39",
+          "tier": "BP",
+          "quantity": 120,
+          "costPerRound": 450,
+          "totalCost": 54000
+        }
+      ],
+      "consumables": [
+        {
+          "id": "cons-1",
+          "name": "Esmarch Tourniquet",
+          "quantity": 1,
+          "costPerUnit": 5000,
+          "totalCost": 5000,
+          "type": "treatment"
+        }
+      ],
+      "gearValue": 85000,
+      "loot": [
+        {
+          "id": "loot-1",
+          "name": "LEDX Skin Transilluminator",
+          "baseValue": 185000,
+          "quantity": 1,
+          "rarity": "rare",
+          "source": "Techlight"
+        },
+        {
+          "id": "loot-2",
+          "name": "Graphics Card",
+          "baseValue": 45000,
+          "quantity": 2,
+          "rarity": "uncommon",
+          "source": "Raider"
+        }
+      ],
+      "lootValue": 275000,
+      "kills": 3,
+      "deaths": 0,
+      "assists": 0,
+      "investment": 144000,
+      "netProfit": 131000,
+      "roi": 90.97,
+      "isHighlight": true,
+      "highlightReason": "High profit raid with rare loot",
+      "highlightCategory": "profit",
+      "sessionId": "session-1719840000000",
+      "notes": "Good run, found LEDX on techlight spot"
+    },
+    {
+      "id": "raid-1719890880000-def456",
+      "timestamp": 1719890880000,
+      "map": "Reserve",
+      "mode": "Standard",
+      "status": "DIED",
+      "duration": 12,
+      "ammo": [
+        {
+          "id": "ammo-2",
+          "caliber": "5.45x39",
+          "tier": "BS",
+          "quantity": 60,
+          "costPerRound": 180,
+          "totalCost": 10800
+        }
+      ],
+      "consumables": [],
+      "gearValue": 45000,
+      "loot": [
+        {
+          "id": "loot-3",
+          "name": "Roler Submariner Gold",
+          "baseValue": 22500,
+          "quantity": 1,
+          "rarity": "common"
+        }
+      ],
+      "lootValue": 22500,
+      "kills": 1,
+      "deaths": 1,
+      "assists": 0,
+      "investment": 55800,
+      "netProfit": -33300,
+      "roi": -59.68,
+      "isHighlight": false,
+      "sessionId": "session-1719840000000",
+      "notes": "Caught off guard by scav raiders"
+    }
+  ],
+  "lootdb": [
+    {
+      "id": "lootdb-ledx",
+      "name": "LEDX Skin Transilluminator",
+      "category": "Medical",
+      "rarity": "rare",
+      "marketPrice": 185000,
+      "vendorPrices": [
+        {
+          "vendor": "Therapist",
+          "price": 92500
+        },
+        {
+          "vendor": "Fence",
+          "price": 92500
+        }
+      ],
+      "lowestPrice": 92500,
+      "bestSellTo": "Therapist",
+      "notes": "High value medical item found in tech locations"
+    },
+    {
+      "id": "lootdb-graphics-card",
+      "name": "Graphics Card",
+      "category": "Electronics",
+      "rarity": "uncommon",
+      "marketPrice": 45000,
+      "vendorPrices": [
+        {
+          "vendor": "Mechanic",
+          "price": 22500
+        }
+      ],
+      "lowestPrice": 22500,
+      "bestSellTo": "Mechanic",
+      "notes": "Found in raiders and tech spawns"
+    },
+    {
+      "id": "lootdb-rolex",
+      "name": "Rolex Submariner Gold",
+      "category": "Valuables",
+      "rarity": "common",
+      "marketPrice": 22500,
+      "vendorPrices": [
+        {
+          "vendor": "Therapist",
+          "price": 11250
+        }
+      ],
+      "lowestPrice": 11250,
+      "bestSellTo": "Therapist",
+      "notes": "Common watch found in various locations"
+    }
+  ],
+  "highlights": [
+    {
+      "raidId": "raid-1719887280000-abc123",
+      "timestamp": 1719887280000,
+      "category": "profit",
+      "reason": "High profit raid with LEDX extract",
+      "isFavorite": true
+    }
+  ],
+  "sessions": []
+}

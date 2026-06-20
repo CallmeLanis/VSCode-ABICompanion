@@ -18,15 +18,14 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
   const settings = getStoredSettings();
 
   // Form state
-  const [map, setMap] = useState('');
-  const [mode, setMode] = useState('');
+  const [map, setMap] = useState('tv_station'); // Default: TVS
+  const [mode, setMode] = useState('forbidden'); // Default: FORBIDDEN
   const [status, setStatus] = useState<string>('');
   const [duration, setDuration] = useState<number | undefined>(undefined);
   const [kills, setKills] = useState<number | undefined>(undefined);
   const [deaths, setDeaths] = useState<number | undefined>(undefined);
   const [gearValue, setGearValue] = useState<number | undefined>(undefined);
   const [rescuePercentage, setRescuePercentage] = useState<number | undefined>(undefined);
-  const [notes, setNotes] = useState('');
 
   // Ammo and Consumables
   const [ammo, setAmmo] = useState<AmmoEntry[]>([]);
@@ -84,7 +83,7 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
       id: generateId(),
       timestamp: now,
       map: MAPS.find(m => m.id === map)?.name || map,
-      mode: GAME_MODES.find(m => m.id === mode)?.name || mode,
+      mode: (GAME_MODES.find(m => m.id === mode)?.name || mode) as any,
       status: (status || 'EXTRACTED') as any,
       duration: duration ?? 0,
       ammo,
@@ -100,7 +99,6 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
       roi: raidPreview.roi,
       isHighlight: false,
       sessionId: getSessionId(now, settings.sessionDuration ?? 60),
-      notes: notes || undefined,
     };
 
     addRaid(raid);
@@ -109,16 +107,15 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
   };
 
   const handleClose = () => {
-    // Reset form to empty values (no defaults)
-    setMap('');
-    setMode('');
+    // Reset form to defaults
+    setMap('tv_station'); // Default: TVS
+    setMode('forbidden'); // Default: FORBIDDEN
     setStatus('');
     setDuration(undefined);
     setKills(undefined);
     setDeaths(undefined);
     setGearValue(undefined);
     setRescuePercentage(undefined);
-    setNotes('');
     setAmmo([]);
     setConsumables([]);
     setLootValue(undefined);
@@ -135,31 +132,33 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
             {/* Basic Info */}
             <div className="grid grid-cols-2 gap-3">
               <Select
-                label="Map"
+                label="MAP"
                 value={map}
                 onChange={(e) => setMap(e.target.value)}
                 options={[
-                  { value: '', label: 'Select a map' },
-                  ...MAPS.map(m => ({ value: m.id, label: m.name })),
+                  { value: 'tv_station', label: 'TVS' },
+                  ...MAPS.filter(m => m.id !== 'tv_station').map(m => ({ value: m.id, label: m.name.toUpperCase() })),
                 ]}
               />
               <Select
-                label="Mode"
+                label="MODE"
                 value={mode}
                 onChange={(e) => setMode(e.target.value)}
-                options={[{ value: '', label: 'Select a mode' }, ...GAME_MODES.map(m => ({ value: m.id, label: m.name }))]}
+                options={[
+                  { value: 'forbidden', label: 'FORBIDDEN' },
+                  ...GAME_MODES.filter(m => m.id !== 'forbidden').map(m => ({ value: m.id, label: m.name.toUpperCase() })),
+                ]}
               />
             </div>
 
             <Select
-              label="Status"
+              label="STATUS"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               options={[
-                { value: '', label: 'Select status' },
-                { value: 'EXTRACTED', label: 'Extracted' },
-                { value: 'DIED', label: 'Died' },
-                { value: 'FLED', label: 'Fled' },
+                { value: '', label: 'SELECT STATUS' },
+                { value: 'EXTRACTED', label: 'EXTRACTED' },
+                { value: 'DIED', label: 'DIED' },
               ]}
             />
 
@@ -221,13 +220,7 @@ export function LogRaidModal({ isOpen, onClose, onSaved }: LogRaidModalProps) {
               )}
             </div>
 
-            {/* Notes */}
-            <Input
-              label="Notes (optional)"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any notable events..."
-            />
+             {/* Notes field removed per requirements */}
           </div>
 
           {/* Right Column */}

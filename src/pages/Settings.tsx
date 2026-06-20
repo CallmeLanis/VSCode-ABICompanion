@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, NumberInput, ConfirmModal } from '../components/ui';
+import { MergeDataBlock } from '../components/MergeDataBlock';
 import { getStoredSettings, saveSettings, clearAllStorage } from '../utils/storage';
 import { formatPercentage } from '../utils/economy';
-import { Settings, Trash2, Info } from 'lucide-react';
+import { Settings, Trash2, Info, Download } from 'lucide-react';
 import type { AppSettings } from '../types';
 
 export function SettingsPage() {
@@ -113,6 +114,11 @@ export function SettingsPage() {
             Raids with kills at or above this amount are automatically highlighted
           </p>
         </div>
+      </Card>
+
+      {/* Data Import & Merge */}
+      <Card className="p-4">
+        <MergeDataBlock onMergeComplete={() => window.location.reload()} />
       </Card>
 
       {/* Data Management */}

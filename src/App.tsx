@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigation, type Page } from './components/Navigation';
 import { Dashboard } from './pages/Dashboard';
-import { RaidLedger } from './pages/RaidLender';
+import { RaidsPage } from './pages/RaidsPage';
 import { RaidDetailPopup } from './pages/RaidDetailPopup';
 import { Sessions } from './pages/Sessions';
 import { Highlights } from './pages/Highlights';
@@ -9,11 +9,34 @@ import { LootDB } from './pages/LootDB';
 import { Economy } from './pages/Economy';
 import { Commander } from './pages/Commander';
 import { SettingsPage } from './pages/Settings';
+import { Overview } from './pages/Overview';
+import { Gear } from './pages/Gear';
+import { Performance } from './pages/Performance';
+import { generateMockRaids, generateMockSessions, generateMockHighlights } from './utils/mockData';
+import { saveRaids, saveSessions, saveHighlights } from './utils/storage';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [currentPage, setCurrentPage] = useState<Page>('overview');
   const [selectedRaidId, setSelectedRaidId] = useState<string | null>(null);
   const [showRaidPopup, setShowRaidPopup] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Initialize mock data if storage is empty (only on first visit)
+  useEffect(() => {
+    if (!isDataLoaded) {
+      const hasVisited = localStorage.getItem('abi_has_visited');
+      if (!hasVisited) {
+        const mockRaids = generateMockRaids();
+        const mockSessions = generateMockSessions();
+        const mockHighlights = generateMockHighlights();
+        saveRaids(mockRaids);
+        saveSessions(mockSessions);
+        saveHighlights(mockHighlights);
+        localStorage.setItem('abi_has_visited', 'true');
+      }
+      setIsDataLoaded(true);
+    }
+  }, [isDataLoaded]);
 
   // Handle raid click
   const handleRaidClick = (raidId: string) => {
@@ -30,16 +53,12 @@ export default function App() {
   // Render current page
   const renderPage = () => {
     switch (currentPage) {
+      case 'overview':
+        return <Overview onRaidClick={handleRaidClick} />;
       case 'dashboard':
-        return (
-          <Dashboard
-            onNavigate={setCurrentPage}
-            onRaidClick={handleRaidClick}
-            onSessionClick={handleSessionClick}
-          />
-        );
+        return <Dashboard onNavigate={setCurrentPage} />;
       case 'raids':
-        return <RaidLedger onRaidClick={handleRaidClick} />;
+        return <RaidsPage onRaidClick={handleRaidClick} />;
       case 'sessions':
         return <Sessions onRaidClick={handleRaidClick} />;
       case 'highlights':
@@ -48,6 +67,10 @@ export default function App() {
         return <LootDB />;
       case 'economy':
         return <Economy />;
+      case 'gear':
+        return <Gear />;
+      case 'performance':
+        return <Performance />;
       case 'commander':
         return <Commander />;
       case 'settings':
@@ -58,17 +81,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-abi-bg text-abi-text">
+    <div className="app-container">
       {/* Navigation */}
       <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
 
       {/* Main Content */}
-      <main className="min-h-screen lg:pl-64">
+      <main className="main-content">
         {/* Mobile header spacer */}
         <div className="lg:hidden h-16" />
 
         {/* Page Content */}
-        <div className="p-4 lg:p-6">
+        <div className="page-content">
           {renderPage()}
         </div>
       </main>

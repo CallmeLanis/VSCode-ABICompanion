@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Modal, Button, Tabs } from '../components/ui';
-import { CONSUMABLES } from '../data/constants';
+import { Modal, Button } from '../components/ui';
+import { CONSUMABLES, AMMO_CALIBERS } from '../data/constants';
 import { generateId } from '../utils/storage';
-import { Plus, Trash2, Pill, Bomb } from 'lucide-react';
+import { Plus, Trash2, Minus } from 'lucide-react';
 import type { ConsumableEntry } from '../types';
 
 interface AddConsumablesModalProps {
@@ -19,10 +19,18 @@ export function AddConsumablesModal({
   initialConsumables = [],
 }: AddConsumablesModalProps) {
   const [consumables, setConsumables] = useState<ConsumableEntry[]>(initialConsumables);
-  const [activeTab, setActiveTab] = useState<'treatment' | 'throwable'>('treatment');
 
-  const treatments = CONSUMABLES.filter(c => c.type === 'treatment');
-  const throwables = CONSUMABLES.filter(c => c.type === 'throwable');
+  // Group consumables by subtype
+  const treatmentGroups = {
+    medicine: CONSUMABLES.filter(c => c.id.startsWith('medicine') || c.name === 'Adrenaline' || c.name === 'Painkillers'),
+    treatments: CONSUMABLES.filter(c => c.id === 'ifix' || c.id === 'bandage' || c.id === 'splint'),
+    medkits: CONSUMABLES.filter(c => c.id === 'medkit' || c.id === 'surgkit'),
+  };
+
+  const throwableGroups = {
+    defend: CONSUMABLES.filter(c => c.id === 'stun_grenade' || c.id === 'smoke_grenade'),
+    blast: CONSUMABLES.filter(c => c.id === 'frag_grenade' || c.id === 'molotov' || c.id === 'c4'),
+  };
 
   const handleAdd = (template: typeof CONSUMABLES[0]) => {
     const existing = consumables.find(c => c.name === template.name);
@@ -54,13 +62,17 @@ export function AddConsumablesModal({
     setConsumables(consumables.filter(c => c.id !== id));
   };
 
-  const handleUpdateQuantity = (id: string, quantity: number) => {
+  const handleUpdateQuantity = (id: string, newQuantity: number) => {
+    if (newQuantity < 1) {
+      handleRemove(id);
+      return;
+    }
     setConsumables(consumables.map(c => {
       if (c.id === id) {
         return {
           ...c,
-          quantity,
-          totalCost: c.costPerUnit * quantity,
+          quantity: newQuantity,
+          totalCost: c.costPerUnit * newQuantity,
         };
       }
       return c;
@@ -74,109 +86,148 @@ export function AddConsumablesModal({
 
   const totalCost = consumables.reduce((sum, c) => sum + c.totalCost, 0);
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Consumables" size="lg">
-      <Tabs
-        tabs={[
-          { id: 'treatment', label: 'Treatments', icon: <Pill size={16} /> },
-          { id: 'throwable', label: 'Throwables', icon: <Bomb size={16} /> },
-        ]}
-        activeTab={activeTab}
-        onChange={(id) => setActiveTab(id as 'treatment' | 'throwable')}
-        className="mb-4"
-      />
+  // Counter block component
+  const CounterBlock = ({ item, type }: { item: typeof CONSUMABLES[0], type: 'treatment' | 'throwable' }) => {
+    const existing = consumables.find(c => c.name === item.name);
+    const quantity = existing?.quantity || 0;
+    const totalCost = existing?.totalCost || 0;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Left: Browser */}
-        <div className="border border-abi-border rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-abi-bg border-b border-abi-border">
-            <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-              {activeTab === 'treatment' ? 'Treatments' : 'Throwables'}
-            </h3>
-          </div>
-          <div className="max-h-[40vh] overflow-y-auto">
-            {(activeTab === 'treatment' ? treatments : throwables).map(item => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between px-4 py-3 border-b border-abi-border last:border-0 hover:bg-abi-bg-hover/50 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-abi-text">{item.name}</p>
-                  <p className="text-xs text-abi-text-dim">${item.baseCost.toLocaleString()}</p>
+    return (
+      <div className="flex flex-col items-center gap-1 p-2 bg-abi-bg border border-abi-border rounded-lg min-w-[120px]">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              if (existing) {
+                handleUpdateQuantity(existing.id, quantity - 1);
+              } else {
+                handleAdd(item);
+                // Decrease quantity back to 0 to show the counter
+                setTimeout(() => {
+                  const updated = consumables.find(c => c.name === item.name);
+                  if (updated && updated.quantity > 1) {
+                    handleUpdateQuantity(updated.id, updated.quantity - 1);
+                  }
+                }, 0);
+              }
+            }}
+            className="p-1 rounded bg-abi-bg-elevated border border-abi-border hover:border-abi-orange text-abi-text-muted hover:text-abi-orange transition-colors"
+          >
+            <Minus size={12} />
+          </button>
+          <span className="text-sm font-bold text-abi-text w-8 text-center">{quantity}</span>
+          <button
+            onClick={() => handleAdd(item)}
+            className="p-1 rounded bg-abi-orange/20 border border-abi-orange text-abi-orange hover:bg-abi-orange hover:text-white transition-colors"
+          >
+            <Plus size={12} />
+          </button>
+        </div>
+        <p className="text-xs text-abi-text-muted text-center leading-tight">{item.name}</p>
+        {quantity > 0 && (
+          <p className="text-xs text-abi-orange font-semibold">${totalCost.toLocaleString()}</p>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Add Consumables" size="xl">
+      <div className="space-y-6">
+        {/* Treatments Section */}
+        <div>
+          <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-3">
+            Add Treatments
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {Object.entries(treatmentGroups).map(([groupName, items]) => (
+              <div key={groupName} className="space-y-2">
+                <p className="text-xs text-abi-text-dim uppercase tracking-wider">{groupName}</p>
+                <div className="flex flex-wrap gap-2">
+                  {items.map(item => (
+                    <CounterBlock key={item.id} item={item} type="treatment" />
+                  ))}
                 </div>
-                <button
-                  onClick={() => handleAdd(item)}
-                  className="p-1.5 rounded bg-abi-orange/20 text-abi-orange hover:bg-abi-orange hover:text-white transition-colors"
-                >
-                  <Plus size={16} />
-                </button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right: Selected */}
-        <div className="border border-abi-border rounded-lg overflow-hidden flex flex-col">
-          <div className="px-4 py-3 bg-abi-bg border-b border-abi-border flex justify-between items-center">
-            <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
-              Selected ({consumables.length})
-            </h3>
-            <span className="text-sm text-abi-orange">
-              ${totalCost.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex-1 max-h-[40vh] overflow-y-auto">
-            {consumables.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-abi-text-dim text-sm p-4">
-                No consumables selected
+        {/* Throwables Section */}
+        <div>
+          <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-3">
+            Add Throwables
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(throwableGroups).map(([groupName, items]) => (
+              <div key={groupName} className="space-y-2">
+                <p className="text-xs text-abi-text-dim uppercase tracking-wider">{groupName}</p>
+                <div className="flex flex-wrap gap-2">
+                  {items.map(item => (
+                    <CounterBlock key={item.id} item={item} type="throwable" />
+                  ))}
+                </div>
               </div>
-            ) : (
-              <div className="space-y-2 p-3">
-                {consumables.map(c => (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-3 p-2 bg-abi-bg rounded-lg border border-abi-border"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        {c.type === 'treatment' ? (
-                          <Pill size={14} className="text-green-400" />
-                        ) : (
-                          <Bomb size={14} className="text-red-400" />
-                        )}
-                        <p className="text-sm font-medium text-abi-text">{c.name}</p>
-                      </div>
-                      <p className="text-xs text-abi-text-dim">${c.costPerUnit.toLocaleString()}/each</p>
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      value={c.quantity}
-                      onChange={(e) => handleUpdateQuantity(c.id, parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1 text-sm bg-abi-bg-elevated border border-abi-border rounded text-abi-text text-center"
-                    />
-                    <p className="text-sm text-abi-orange w-16 text-right">
-                      ${c.totalCost.toLocaleString()}
-                    </p>
-                    <button
-                      onClick={() => handleRemove(c.id)}
-                      className="p-1 text-abi-text-muted hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
         </div>
-      </div>
 
-      <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-abi-border">
-        <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" onClick={handleSave} glow>
-          Save Consumables
-        </Button>
+        {/* Selected List */}
+        {consumables.length > 0 && (
+          <div className="border border-abi-border rounded-lg overflow-hidden">
+            <div className="px-4 py-3 bg-abi-bg border-b border-abi-border flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider">
+                Selected ({consumables.length})
+              </h3>
+              <span className="text-sm text-abi-orange font-bold">
+                ${totalCost.toLocaleString()}
+              </span>
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {consumables.map(c => (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-3 p-3 border-b border-abi-border last:border-0"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-abi-text">{c.name}</p>
+                    <p className="text-xs text-abi-text-dim">${c.costPerUnit.toLocaleString()}/each</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleUpdateQuantity(c.id, c.quantity - 1)}
+                      className="p-1 rounded bg-abi-bg-elevated border border-abi-border hover:border-abi-orange text-abi-text-muted hover:text-abi-orange transition-colors"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="text-sm font-bold text-abi-text w-8 text-center">{c.quantity}</span>
+                    <button
+                      onClick={() => handleUpdateQuantity(c.id, c.quantity + 1)}
+                      className="p-1 rounded bg-abi-orange/20 border border-abi-orange text-abi-orange hover:bg-abi-orange hover:text-white transition-colors"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-abi-orange w-20 text-right">
+                    ${c.totalCost.toLocaleString()}
+                  </p>
+                  <button
+                    onClick={() => handleRemove(c.id)}
+                    className="p-1 text-abi-text-muted hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-abi-border">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={handleSave} glow>
+            Save Consumables
+          </Button>
+        </div>
       </div>
     </Modal>
   );

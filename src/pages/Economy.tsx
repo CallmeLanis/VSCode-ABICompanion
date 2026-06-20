@@ -1,282 +1,396 @@
-import { useMemo, useState } from 'react';
-import { Card, Badge, Tabs, ProgressBar } from '../components/ui';
-import { calculateEconomyBreakdown, calculatePerformanceTimeline } from '../utils/analytics';
-import { formatCurrency, formatPercentage } from '../utils/economy';
-import { TrendingUp, TrendingDown, Map, Target, BarChart, LineChart } from 'lucide-react';
-
-type MapData = [string, { raids: number; profit: number; investment: number }];
+import { useMemo } from 'react';
+import { getRaids } from '../utils/storage';
+import { formatCurrency, formatNumber } from '../utils/mockData';
 
 export function Economy() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const economyBreakdown = useMemo(() => calculateEconomyBreakdown(), []);
-  const timeline = useMemo(() => calculatePerformanceTimeline(30), []);
+  const raids = useMemo(() => getRaids(), []);
 
-  // Calculate best/worst map and mode
-  const bestMap = useMemo((): MapData | null => {
-    const entries = Object.entries(economyBreakdown.byMap) as MapData[];
-    if (entries.length === 0) return null;
-    return entries.reduce((best, current) =>
-      current[1].profit > best[1].profit ? current : best
-    );
-  }, [economyBreakdown]);
+  const ammoSpent = useMemo(() => {
+    return raids.reduce((sum, r) =>
+      sum + r.ammo.reduce((aSum, a) => aSum + a.totalCost, 0), 0);
+  }, [raids]);
 
-  const worstMap = useMemo((): MapData | null => {
-    const entries = Object.entries(economyBreakdown.byMap) as MapData[];
-    if (entries.length === 0) return null;
-    return entries.reduce((worst, current) =>
-      current[1].profit < worst[1].profit ? current : worst
-    );
-  }, [economyBreakdown]);
+  const consumablesSpent = useMemo(() => {
+    return raids.reduce((sum, r) =>
+      sum + r.consumables.reduce((cSum, c) => cSum + c.totalCost, 0), 0);
+  }, [raids]);
+
+  const gearLost = useMemo(() => {
+    return raids.reduce((sum, r) => {
+      if (r.status === 'DIED' && r.gearRescue) {
+        return sum + r.gearRescue.gearLoss;
+      } else if (r.status === 'DIED') {
+        return sum + r.gearValue;
+      }
+      return sum;
+    }, 0);
+  }, [raids]);
+
+  const totalSpend = ammoSpent + consumablesSpent + gearLost;
+
+  const cumulativePL = useMemo(() => {
+    const sorted = [...raids].sort((a, b) => a.timestamp - b.timestamp);
+    let cumulative = 0;
+    return sorted.map(raid => {
+      cumulative += raid.netProfit;
+      return cumulative;
+    });
+  }, [raids]);
+
+  const spendSegments = useMemo(() => {
+    const gearValue = raids.reduce((sum, r) => sum + r.gearValue, 0);
+    return [
+      { label: 'GEAR', value: gearValue, color: '#FF5500' },
+      { label: 'AMMO', value: ammoSpent, color: '#FF2233' },
+      { label: 'CONSUMABLES', value: consumablesSpent, color: '#00CC44' },
+    ];
+  }, [raids, ammoSpent, consumablesSpent]);
+
+  const ammoUsageRows = useMemo(() => {
+    const ammoMap = new Map<string, {
+      ammo: string;
+      family: string;
+      tier: string;
+      rounds: number;
+      unit: number;
+      total: number;
+    }>();
+
+    raids.forEach(raid => {
+      raid.ammo.forEach(ammo => {
+        const key = ammo.caliber;
+        const existing = ammoMap.get(key);
+        if (existing) {
+          existing.rounds += ammo.quantity;
+          existing.total += ammo.totalCost;
+          existing.unit = Math.max(existing.unit, ammo.costPerRound);
+        } else {
+          ammoMap.set(key, {
+            ammo: ammo.caliber,
+            family: ammo.caliber,
+            tier: ammo.tier,
+            rounds: ammo.quantity,
+            unit: ammo.costPerRound,
+            total: ammo.totalCost,
+          });
+        }
+      });
+    });
+
+    return Array.from(ammoMap.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+  }, [raids]);
+
+  const consumableRows = useMemo(() => {
+    const consumableMap = new Map<string, {
+      item: string;
+      subtype: string;
+      qty: number;
+      unit: number;
+      total: number;
+    }>();
+
+    raids.forEach(raid => {
+      raid.consumables.forEach(consumable => {
+        const key = consumable.name;
+        const existing = consumableMap.get(key);
+        if (existing) {
+          existing.qty += consumable.quantity;
+          existing.total += consumable.totalCost;
+          existing.unit = Math.max(existing.unit, consumable.costPerUnit);
+        } else {
+          consumableMap.set(key, {
+            item: consumable.name,
+            subtype: consumable.type === 'treatment' ? 'Treatments' : 'Blast',
+            qty: consumable.quantity,
+            unit: consumable.costPerUnit,
+            total: consumable.totalCost,
+          });
+        }
+      });
+    });
+
+    return Array.from(consumableMap.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+  }, [raids]);
+
+  const totals = spendSegments.reduce((sum, item) => sum + item.value, 0);
+
+  const minY = Math.min(...cumulativePL, 0);
+  const maxY = Math.max(...cumulativePL, 0);
+  const padding = 20;
+  const chartWidth = 760;
+  const chartHeight = 320;
+
+  const linePath = useMemo(() => {
+    if (cumulativePL.length === 0) return '';
+    return cumulativePL
+      .map((value, index) => {
+        const x = (index / (cumulativePL.length - 1)) * chartWidth;
+        const y = padding + (chartHeight - padding * 2) * (1 - (value - minY) / (maxY - minY || 1));
+        return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+      })
+      .join(' ');
+  }, [cumulativePL, minY, maxY]);
+
+  const donutOffsets = useMemo(() => {
+    const radius = 80;
+    const circumference = 2 * Math.PI * radius;
+    let offset = 0;
+    return spendSegments.map((segment) => {
+      const dash = (segment.value / totals) * circumference;
+      const current = { dash, offset };
+      offset += dash;
+      return current;
+    });
+  }, [spendSegments, totals]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-abi-text flex items-center gap-2">
-          <TrendingUp className="text-abi-orange" size={28} />
-          Economy
-        </h1>
-        <p className="text-abi-text-muted text-sm mt-1">
-          Detailed spending and profit analysis
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="hud-label text-xs tracking-[0.3em] mb-2">ECONOMY INTELLIGENCE</p>
+          <h1 className="text-4xl lg:text-5xl font-black text-abi-text">Financial Overview</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="hud-chip rounded-full px-4 py-2 tracking-[0.24em] text-xs uppercase text-abi-orange border border-abi-orange/25">
+            All Raids
+          </span>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs
-        tabs={[
-          { id: 'overview', label: 'Overview', icon: <BarChart size={16} /> },
-          { id: 'maps', label: 'Maps', icon: <Map size={16} /> },
-          { id: 'modes', label: 'Modes', icon: <Target size={16} /> },
-          { id: 'timeline', label: 'Timeline', icon: <LineChart size={16} /> },
-        ]}
-        activeTab={activeTab}
-        onChange={setActiveTab}
-      />
+      {/* Main Content: 60/40 Split */}
+      <div className="grid grid-cols-1 xl:grid-cols-[60%_40%] gap-4">
+        {/* Cumulative P/L Chart */}
+        <div className="hud-card rounded-xl p-5 relative">
+          <div className="corner-accent top-left" />
+          <div className="corner-accent top-right" />
+          <div className="corner-accent bottom-left" />
+          <div className="corner-accent bottom-right" />
 
-      {activeTab === 'overview' && (
-        <>
-          {/* Spend Breakdown */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
-                Spending Breakdown
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-abi-text-muted">Ammo</span>
-                    <span className="text-sm text-abi-text">${formatCurrency(economyBreakdown.ammoSpent)}</span>
-                  </div>
-                  <ProgressBar
-                    value={economyBreakdown.ammoSpent}
-                    max={economyBreakdown.totalSpend || 1}
-                    variant="orange"
-                    showLabel
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-abi-text-muted">Consumables</span>
-                    <span className="text-sm text-abi-text">${formatCurrency(economyBreakdown.consumablesSpent)}</span>
-                  </div>
-                  <ProgressBar
-                    value={economyBreakdown.consumablesSpent}
-                    max={economyBreakdown.totalSpend || 1}
-                    variant="info"
-                    showLabel
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-abi-text-muted">Gear Lost</span>
-                    <span className="text-sm text-abi-text">${formatCurrency(economyBreakdown.gearLost)}</span>
-                  </div>
-                  <ProgressBar
-                    value={economyBreakdown.gearLost}
-                    max={economyBreakdown.totalSpend || 1}
-                    variant="danger"
-                    showLabel
-                  />
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-abi-border">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold text-abi-text">Total Spend</span>
-                  <span className="text-lg font-bold text-abi-orange">
-                    ${formatCurrency(economyBreakdown.totalSpend)}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Best/Worst Performance */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
-                Map Profitability
-              </h3>
-              {bestMap && (
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp size={16} className="text-green-400" />
-                    <span className="text-sm text-abi-text-muted">Best Map</span>
-                  </div>
-                  <p className="text-lg font-bold text-abi-text">{bestMap[0]}</p>
-                  <p className="text-green-400">
-                    +${formatCurrency(bestMap[1].profit)} ({bestMap[1].raids} raids)
-                  </p>
-                </div>
-              )}
-              {worstMap && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown size={16} className="text-red-400" />
-                    <span className="text-sm text-abi-text-muted">Worst Map</span>
-                  </div>
-                  <p className="text-lg font-bold text-abi-text">{worstMap[0]}</p>
-                  <p className={worstMap[1].profit < 0 ? 'text-red-400' : 'text-abi-text-muted'}>
-                    {worstMap[1].profit < 0 ? '' : '+'}${formatCurrency(worstMap[1].profit)} ({worstMap[1].raids} raids)
-                  </p>
-                </div>
-              )}
-              {!bestMap && !worstMap && (
-                <p className="text-abi-text-dim text-sm">Not enough data</p>
-              )}
-            </Card>
-
-            {/* Spend Ratios */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
-                Investment Ratios
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-abi-text-muted">Ammo %</span>
-                  <span className="text-abi-text">
-                    {economyBreakdown.totalSpend > 0
-                      ? formatPercentage((economyBreakdown.ammoSpent / economyBreakdown.totalSpend) * 100)
-                      : '0%'
-                    }
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-abi-text-muted">Consumables %</span>
-                  <span className="text-abi-text">
-                    {economyBreakdown.totalSpend > 0
-                      ? formatPercentage((economyBreakdown.consumablesSpent / economyBreakdown.totalSpend) * 100)
-                      : '0%'
-                    }
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-abi-text-muted">Gear Loss %</span>
-                  <span className="text-abi-text">
-                    {economyBreakdown.totalSpend > 0
-                      ? formatPercentage((economyBreakdown.gearLost / economyBreakdown.totalSpend) * 100)
-                      : '0%'
-                    }
-                  </span>
-                </div>
-              </div>
-            </Card>
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <p className="hud-label mb-2">CUMULATIVE P/L</p>
+              <h2 className="text-2xl font-black text-abi-text">Net Worth Performance</h2>
+            </div>
+            <span className="text-xs uppercase tracking-[0.28em] text-abi-text-muted mt-1">ALL RAIDS</span>
           </div>
-        </>
-      )}
 
-      {activeTab === 'maps' && (
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
-            Profit by Map
-          </h3>
-          {Object.keys(economyBreakdown.byMap).length > 0 ? (
-            <div className="space-y-3">
-              {Object.entries(economyBreakdown.byMap).map(([map, data]) => (
-                <div key={map} className="flex items-center gap-4">
-                  <span className="w-32 text-sm text-abi-text">{map}</span>
-                  <ProgressBar
-                    value={Math.abs(data.profit)}
-                    max={Math.max(...Object.values(economyBreakdown.byMap).map(d => Math.abs(d.profit)))}
-                    variant={data.profit >= 0 ? 'success' : 'danger'}
-                    className="flex-1"
-                  />
-                  <span className={`w-24 text-right text-sm ${data.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {data.profit >= 0 ? '+' : ''}${formatCurrency(data.profit)}
-                  </span>
-                  <Badge variant="default" size="sm">{data.raids}</Badge>
-                </div>
-              ))}
+          <div className="relative">
+            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-[320px]">
+              <defs>
+                <linearGradient id="plGradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="#ff5500" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="#ff5500" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+
+              {/* Grid lines */}
+              {[0, 1, 2, 3].map((row) => {
+                const y = padding + row * (chartHeight - padding * 2) / 3;
+                return (
+                  <g key={row}>
+                    <line x1="0" y1={y} x2={chartWidth} y2={y} stroke="rgba(255,255,255,0.08)" strokeDasharray="4 6" />
+                  </g>
+                );
+              })}
+
+              {/* Y-axis labels */}
+              {[-20000000, 0, 20000000, 40000000, 60000000].map((value) => {
+                const y = padding + (chartHeight - padding * 2) * (1 - (value - minY) / (maxY - minY || 1));
+                return (
+                  <text key={value} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="#888888">
+                    {value.toLocaleString()}
+                  </text>
+                );
+              })}
+
+              {/* Line path */}
+              {linePath && (
+                <>
+                  <path d={linePath} fill="none" stroke="#ff5500" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={`${linePath} L ${chartWidth} ${chartHeight - padding} L 0 ${chartHeight - padding} Z`} fill="url(#plGradient)" opacity="0.8" />
+                </>
+              )}
+
+              {/* X-axis labels */}
+              {cumulativePL.length > 0 && [0, Math.floor(cumulativePL.length / 4), Math.floor(cumulativePL.length / 2), Math.floor(cumulativePL.length * 3 / 4), cumulativePL.length - 1].map((index) => {
+                const x = (index / (cumulativePL.length - 1)) * chartWidth;
+                return (
+                  <text key={index} x={x} y={chartHeight - 5} textAnchor="middle" fontSize="11" fill="#888888">
+                    R{index + 1}
+                  </text>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+
+        {/* Spend Breakdown Donut */}
+        <div className="hud-card rounded-xl p-5 relative">
+          <div className="corner-accent top-left" />
+          <div className="corner-accent top-right" />
+          <div className="corner-accent bottom-left" />
+          <div className="corner-accent bottom-right" />
+
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <p className="hud-label mb-2">SPEND BREAKDOWN</p>
+              <h2 className="text-2xl font-black text-abi-text">Expense Distribution</h2>
             </div>
-          ) : (
-            <p className="text-abi-text-dim">No map data available</p>
-          )}
-        </Card>
-      )}
+          </div>
 
-      {activeTab === 'modes' && (
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
-            Profit by Game Mode
-          </h3>
-          {Object.keys(economyBreakdown.byMode).length > 0 ? (
-            <div className="space-y-3">
-              {Object.entries(economyBreakdown.byMode).map(([mode, data]) => (
-                <div key={mode} className="flex items-center gap-4">
-                  <span className="w-32 text-sm text-abi-text">{mode}</span>
-                  <ProgressBar
-                    value={Math.abs(data.profit)}
-                    max={Math.max(...Object.values(economyBreakdown.byMode).map(d => Math.abs(d.profit)))}
-                    variant={data.profit >= 0 ? 'success' : 'danger'}
-                    className="flex-1"
-                  />
-                  <span className={`w-24 text-right text-sm ${data.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {data.profit >= 0 ? '+' : ''}${formatCurrency(data.profit)}
-                  </span>
-                  <Badge variant="default" size="sm">{data.raids}</Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-abi-text-dim">No mode data available</p>
-          )}
-        </Card>
-      )}
-
-      {activeTab === 'timeline' && (
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
-            30-Day Performance
-          </h3>
-          {timeline.length > 0 ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[600px] h-48 flex items-end gap-1">
-                {timeline.map((day, i) => {
-                  const maxProfit = Math.max(...timeline.map(t => Math.abs(t.profit)));
-                  const height = maxProfit > 0 ? (Math.abs(day.profit) / maxProfit) * 100 : 0;
+          <div className="flex flex-col items-center gap-6">
+            <div className="relative w-full max-w-[280px] h-[280px]">
+              <svg viewBox="0 0 220 220" className="w-full h-full">
+                <circle cx="110" cy="110" r="80" fill="transparent" stroke="rgba(255,255,255,0.08)" strokeWidth="20" />
+                {spendSegments.map((segment, index) => {
+                  const radius = 80;
+                  const circumference = 2 * Math.PI * radius;
+                  const offset = donutOffsets[index].offset;
+                  const dash = donutOffsets[index].dash;
                   return (
-                    <div
-                      key={i}
-                      className="flex-1 flex flex-col items-center justify-end"
-                      title={`${day.date}: $${formatCurrency(day.profit)} (${day.raids} raids)`}
+                    <circle
+                      key={segment.label}
+                      cx="110"
+                      cy="110"
+                      r={radius}
+                      fill="transparent"
+                      stroke={segment.color}
+                      strokeWidth="20"
+                      strokeDasharray={`${dash} ${circumference - dash}`}
+                      strokeDashoffset={-offset}
+                      strokeLinecap="butt"
+                      transform="rotate(-90 110 110)"
                     >
-                      <div
-                        className={`w-full rounded-t transition-all duration-200 hover:opacity-80 ${day.profit >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                        style={{ height: `${Math.max(height, 4)}%` }}
-                      />
-                    </div>
+                      <title>{`${segment.label}: ${formatCurrency(segment.value)}`}</title>
+                    </circle>
                   );
                 })}
-              </div>
-              {/* X-axis labels */}
-              <div className="flex justify-between text-xs text-abi-text-dim mt-2 min-w-[600px]">
-                <span>{timeline[0]?.date}</span>
-                <span>{timeline[Math.floor(timeline.length / 2)]?.date}</span>
-                <span>{timeline[timeline.length - 1]?.date}</span>
-              </div>
+                <text x="110" y="112" textAnchor="middle" fontSize="14" fill="#ffffff" fontWeight="700">Spend</text>
+                <text x="110" y="132" textAnchor="middle" fontSize="10" fill="#888888">Breakdown</text>
+              </svg>
             </div>
-          ) : (
-            <p className="text-abi-text-dim">No timeline data available</p>
-          )}
-        </Card>
-      )}
+
+            <div className="space-y-3 w-full">
+              {spendSegments.map((segment) => (
+                <div key={segment.label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
+                    <span className="text-sm uppercase tracking-[0.28em] text-abi-text-muted">{segment.label}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-abi-text">{formatCurrency(segment.value)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Row: Two Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Most Expensive Ammo Usage */}
+        <div className="hud-card rounded-xl p-5 relative">
+          <div className="corner-accent top-left" />
+          <div className="corner-accent top-right" />
+          <div className="corner-accent bottom-left" />
+          <div className="corner-accent bottom-right" />
+
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <p className="hud-label mb-2">MOST EXPENSIVE AMMO USAGE</p>
+              <h2 className="text-xl font-black text-abi-text">Ammo spend leaderboard</h2>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-abi-border">
+            <div className="grid grid-cols-[1.4fr_1fr_0.7fr_0.7fr_0.9fr_1fr] gap-3 px-4 py-3 text-xs uppercase tracking-[0.24em] text-abi-text-muted bg-[#10101a]">
+              <span>Ammo</span>
+              <span>Family</span>
+              <span>Tier</span>
+              <span>Rounds</span>
+              <span>Unit</span>
+              <span>Total</span>
+            </div>
+            <div className="divide-y divide-abi-border">
+              {ammoUsageRows.map((row) => (
+                <div key={row.ammo} className="grid grid-cols-[1.4fr_1fr_0.7fr_0.7fr_0.9fr_1fr] gap-3 px-4 py-4 transition hover:bg-abi-bg-hover cursor-default">
+                  <span className="text-sm text-abi-text">{row.ammo}</span>
+                  <span className="text-sm text-abi-text-muted">{row.family}</span>
+                  <span className="inline-flex items-center justify-center rounded-full border border-abi-orange px-2 py-1 text-[11px] uppercase tracking-[0.24em] text-abi-orange">
+                    {row.tier}
+                  </span>
+                  <span className="text-sm text-abi-text">{formatNumber(row.rounds)}</span>
+                  <span className="text-sm text-abi-text">{formatCurrency(row.unit)}</span>
+                  <span className="text-sm font-semibold text-red-400">{formatCurrency(row.total)}</span>
+                </div>
+              ))}
+              {ammoUsageRows.length > 0 && (
+                <div className="grid grid-cols-[1.4fr_1fr_0.7fr_0.7fr_0.9fr_1fr] gap-3 px-4 py-3 bg-abi-bg/30">
+                  <span className="text-xs uppercase tracking-wider text-abi-text-muted">Total</span>
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span className="text-sm font-bold text-red-400">
+                    {formatCurrency(ammoUsageRows.reduce((sum, r) => sum + r.total, 0))}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Consumable Spending */}
+        <div className="hud-card rounded-xl p-5 relative">
+          <div className="corner-accent top-left" />
+          <div className="corner-accent top-right" />
+          <div className="corner-accent bottom-left" />
+          <div className="corner-accent bottom-right" />
+
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <p className="hud-label mb-2">CONSUMABLE SPENDING</p>
+              <h2 className="text-xl font-black text-abi-text">Outlay by item</h2>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-abi-border">
+            <div className="grid grid-cols-[1.4fr_1fr_0.7fr_0.9fr_1fr] gap-3 px-4 py-3 text-xs uppercase tracking-[0.24em] text-abi-text-muted bg-[#10101a]">
+              <span>Item</span>
+              <span>Subtype</span>
+              <span>Qty</span>
+              <span>Unit</span>
+              <span>Total</span>
+            </div>
+            <div className="divide-y divide-abi-border">
+              {consumableRows.map((row) => (
+                <div key={row.item} className="grid grid-cols-[1.4fr_1fr_0.7fr_0.9fr_1fr] gap-3 px-4 py-4 transition hover:bg-abi-bg-hover cursor-default">
+                  <span className="text-sm text-abi-text">{row.item}</span>
+                  <span className="text-sm text-abi-text-muted">{row.subtype}</span>
+                  <span className="text-sm text-abi-text">{formatNumber(row.qty)}</span>
+                  <span className="text-sm text-abi-text">{formatCurrency(row.unit)}</span>
+                  <span className="text-sm font-semibold text-red-400">{formatCurrency(row.total)}</span>
+                </div>
+              ))}
+              {consumableRows.length > 0 && (
+                <div className="grid grid-cols-[1.4fr_1fr_0.7fr_0.9fr_1fr] gap-3 px-4 py-3 bg-abi-bg/30">
+                  <span className="text-xs uppercase tracking-wider text-abi-text-muted">Total</span>
+                  <span />
+                  <span />
+                  <span />
+                  <span className="text-sm font-bold text-red-400">
+                    {formatCurrency(consumableRows.reduce((sum, r) => sum + r.total, 0))}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

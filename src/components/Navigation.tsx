@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 
-type Page = 'dashboard' | 'raids' | 'sessions' | 'highlights' | 'lootdb' | 'economy' | 'commander' | 'settings';
+type Page = 'overview' | 'dashboard' | 'raids' | 'sessions' | 'highlights' | 'lootdb' | 'economy' | 'gear' | 'performance' | 'commander' | 'settings';
 
 interface NavigationProps {
   currentPage: Page;
@@ -20,12 +20,14 @@ interface NavigationProps {
 }
 
 const NAV_ITEMS: { id: Page; label: string; icon: React.ReactNode }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+  { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={20} /> },
   { id: 'raids', label: 'Raids', icon: <Swords size={20} /> },
   { id: 'sessions', label: 'Sessions', icon: <Clock size={20} /> },
   { id: 'highlights', label: 'Highlights', icon: <Star size={20} /> },
   { id: 'lootdb', label: 'LootDB', icon: <Database size={20} /> },
   { id: 'economy', label: 'Economy', icon: <TrendingUp size={20} /> },
+  { id: 'gear', label: 'Gear', icon: <User size={20} /> },
+  { id: 'performance', label: 'Performance', icon: <TrendingUp size={20} /> },
   { id: 'commander', label: 'Commander', icon: <User size={20} /> },
   { id: 'settings', label: 'Settings', icon: <Settings size={20} /> },
 ];
@@ -64,30 +66,26 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 bottom-0 z-40
-          w-64 bg-abi-bg-elevated border-r border-abi-border
+          sidebar
           flex flex-col
-          transform transition-transform duration-300
           lg:translate-x-0
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+          group
         `}
       >
         {/* Logo */}
-        <div className="hidden lg:flex items-center gap-3 px-6 py-5 border-b border-abi-border">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-abi-orange to-abi-orange-dark flex items-center justify-center shadow-glow">
+        <div className="hidden lg:flex items-center gap-3 px-4 py-5 border-b border-abi-border overflow-hidden">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-abi-orange to-abi-orange-dark flex items-center justify-center shadow-glow flex-shrink-0">
             <Swords size={22} className="text-white" />
           </div>
-          <div>
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
             <h1 className="font-bold text-abi-text text-lg">ABI Companion</h1>
             <p className="text-xs text-abi-text-dim">Tactical Dashboard</p>
           </div>
         </div>
 
-        {/* Mobile Logo spacer */}
-        <div className="lg:hidden h-16" />
-
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-hidden group-hover:overflow-y-auto">
           {NAV_ITEMS.map((item) => {
             const isActive = currentPage === item.id;
             return (
@@ -110,24 +108,15 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
                 {isActive && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-abi-orange rounded-r-full" />
                 )}
-                <span className={isActive ? 'text-abi-orange' : ''}>
+                <span className={`flex-shrink-0 ${isActive ? 'text-abi-orange' : ''}`}>
                   {item.icon}
                 </span>
-                <span className="font-medium text-sm">{item.label}</span>
+                <span className="font-medium text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">{item.label}</span>
               </button>
             );
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-abi-border">
-          <p className="text-xs text-abi-text-dim">
-            Data stored locally
-          </p>
-          <p className="text-xs text-abi-text-dim mt-1">
-            v1.0.0
-          </p>
-        </div>
       </aside>
 
     </>

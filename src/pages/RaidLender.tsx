@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { Button, Input, Badge, VirtualScroll, EmptyState, Tabs } from '../components/ui';
-import { getRaids } from '../utils/storage';
+import { Button, Input, Badge, VirtualScroll, EmptyState, Tabs, ConfirmModal } from '../components/ui';
+import { getRaids, deleteRaid } from '../utils/storage';
 import { formatCurrency, formatDateTime, formatPercentage } from '../utils/economy';
 import { STATUS_ICONS } from '../data/constants';
-import { Search, SortDesc, Plus, Clock, Target, Skull } from 'lucide-react';
+import { Search, SortDesc, Plus, Clock, Target, Skull, Trash2, Eye } from 'lucide-react';
 import type { Raid, RaidStatus } from '../types';
 import { LogRaidModal } from './LogRaidModal';
+import { RaidDetailPopup } from './RaidDetailPopup';
 
 interface RaidLedgerProps {
   onRaidClick: (raidId: string) => void;
@@ -24,8 +25,10 @@ export function RaidLedger({ onRaidClick }: RaidLedgerProps) {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [sortField, setSortField] = useState<SortField>('timestamp');
 
-  // Modal
+  // Modals
   const [showLogModal, setShowLogModal] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [detailRaidId, setDetailRaidId] = useState<string | null>(null);
 
   // Update container height on resize
   useEffect(() => {
@@ -91,6 +94,23 @@ export function RaidLedger({ onRaidClick }: RaidLedgerProps) {
       case 'netProfit': return 'Profit';
       case 'roi': return 'ROI';
       case 'kills': return 'Kills';
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, raidId: string) => {
+    e.stopPropagation();
+    setDeleteConfirmId(raidId);
+  };
+
+  const handleDetailClick = (e: React.MouseEvent, raidId: string) => {
+    e.stopPropagation();
+    setDetailRaidId(raidId);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteConfirmId) {
+      deleteRaid(deleteConfirmId);
+      setDeleteConfirmId(null);
     }
   };
 
@@ -175,6 +195,24 @@ export function RaidLedger({ onRaidClick }: RaidLedgerProps) {
             <span className="text-abi-orange">★</span>
           </div>
         )}
+
+        {/* Action buttons */}
+        <div className="w-20 flex justify-center gap-1">
+          <button
+            onClick={(e) => handleDetailClick(e, raid.id)}
+            className="p-1.5 rounded hover:bg-abi-orange/20 text-abi-text-dim hover:text-abi-orange transition-colors"
+            title="View details"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            onClick={(e) => handleDeleteClick(e, raid.id)}
+            className="p-1.5 rounded hover:bg-red-900/30 text-abi-text-dim hover:text-red-400 transition-colors"
+            title="Delete raid"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
     );
   }, [onRaidClick]);
@@ -221,7 +259,6 @@ export function RaidLedger({ onRaidClick }: RaidLedgerProps) {
             { id: 'all', label: 'All' },
             { id: 'EXTRACTED', label: 'Extracted' },
             { id: 'DIED', label: 'Died' },
-            { id: 'FLED', label: 'Fled' },
           ]}
           activeTab={statusFilter}
           onChange={(id) => setStatusFilter(id as FilterStatus)}
@@ -281,6 +318,26 @@ export function RaidLedger({ onRaidClick }: RaidLedgerProps) {
         isOpen={showLogModal}
         onClose={() => setShowLogModal(false)}
       />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmId !== null}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Raid"
+        message="Are you sure you want to delete this raid? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
+
+      {/* Raid Detail Popup */}
+      {detailRaidId && (
+        <RaidDetailPopup
+          raidId={detailRaidId}
+          isOpen={true}
+          onClose={() => setDetailRaidId(null)}
+        />
+      )}
     </div>
   );
 }

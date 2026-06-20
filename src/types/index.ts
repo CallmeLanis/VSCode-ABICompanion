@@ -3,6 +3,9 @@
 // Raid Status
 export type RaidStatus = 'EXTRACTED' | 'DIED' | 'FLED';
 
+// Raid Mode
+export type RaidMode = 'Normal' | 'Lockdown' | 'Forbidden';
+
 // Ammo Entry for multi-ammo support
 export interface AmmoEntry {
   id: string;
@@ -46,7 +49,7 @@ export interface Raid {
   id: string;
   timestamp: number;
   map: string;
-  mode: string;
+  mode: RaidMode;
   status: RaidStatus;
   duration: number;
 
@@ -119,6 +122,10 @@ export interface LootDBItem {
   name: string;
   category: string;
   rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'red';
+  type: 'armor' | 'weapon' | 'ammo' | 'medic' | 'grenade' | 'misc';
+  subtype?: string;
+  tier?: string;
+  caliber?: string;
   marketPrice: number;
   vendorPrices: {
     vendor: string;
@@ -130,7 +137,6 @@ export interface LootDBItem {
     timestamp: number;
   }[];
   bestSellTo: string;
-  imageUrl?: string;
   notes?: string;
 }
 
