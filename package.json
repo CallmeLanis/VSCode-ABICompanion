@@ -1,8 +1,12 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "abi-companion",
   "private": true,
   "version": "0.0.0",
+  "homepage": "https://callmelanis.github.io/VSCode-ABICompanion/",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

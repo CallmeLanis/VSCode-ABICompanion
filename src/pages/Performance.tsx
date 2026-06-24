@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { getRaids } from '../utils/storage';
+import { useRaids } from '../hooks/useStorageQuery';
 import { formatCurrency, formatPercentage, formatNumber } from '../utils/mockData';
 
 export function Performance() {
-  const raids = useMemo(() => getRaids(), []);
+  const raids = useRaids();
 
   const modeEfficiency = useMemo(() => {
     const modes = ['Normal', 'Lockdown', 'Forbidden'];

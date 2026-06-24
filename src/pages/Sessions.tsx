@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Card, Badge, EmptyState, Modal, Divider } from '../components/ui';
-import { aggregateSessions } from '../utils/analytics';
 import { formatCurrency, formatDateTime, formatPercentage } from '../utils/economy';
-import { getRaids } from '../utils/storage';
+import { useAggregatedSessions, useRaids } from '../hooks/useStorageQuery';
 import { STATUS_ICONS } from '../data/constants';
 import { Clock, TrendingUp, Target, Calendar, ChevronRight } from 'lucide-react';
 import type { Session, Raid } from '../types';
@@ -12,13 +11,14 @@ interface SessionsProps {
 }
 
 export function Sessions({ onRaidClick }: SessionsProps) {
-  const sessions = useMemo(() => aggregateSessions(), []);
+  const sessions = useAggregatedSessions();
+  const raids = useRaids();
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
   const sessionRaids = useMemo(() => {
     if (!selectedSession) return [];
-    return getRaids().filter((r: Raid) => r.sessionId === selectedSession.id);
-  }, [selectedSession]);
+    return raids.filter((r: Raid) => r.sessionId === selectedSession.id);
+  }, [selectedSession, raids]);
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
 import { Modal, Badge, Divider } from '../components/ui';
 import { formatCurrency, formatDateTime, formatDuration, formatPercentage } from '../utils/economy';
 import { getRaidById } from '../utils/storage';
+import { useStorageQuery } from '../hooks/useStorageQuery';
 import { STATUS_ICONS, RARITY_COLORS } from '../data/constants';
 import { Skull, Package, Clock, Target, DollarSign } from 'lucide-react';
 
@@ -12,10 +12,7 @@ interface RaidDetailPopupProps {
 }
 
 export function RaidDetailPopup({ raidId, isOpen, onClose }: RaidDetailPopupProps) {
-  const raid = useMemo(() => {
-    if (!raidId) return null;
-    return getRaidById(raidId);
-  }, [raidId]);
+  const raid = useStorageQuery('raids', () => (raidId ? getRaidById(raidId) ?? null : null));
 
   if (!raid) return null;
 

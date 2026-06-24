@@ -1,49 +1,15 @@
-import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
-import { formatCurrency } from '../utils/economy';
+import { useMemo, useState } from 'react';
+import {
+  calculateProfitCurve,
+  calculateSpendBreakdown,
+} from '../utils/analytics';
+import { useStorageQuery } from '../hooks/useStorageQuery';
 import { DashboardCard } from '../components/dashboard/DashboardWidgets';
 import type { Page } from '../components/Navigation';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
 }
-
-const cumulativePL = [
-  0, -1800000, -620000, -1400000, -400000, 2200000, 6500000, 5400000,
-  9800000, 15600000, 21400000, 25300000, 30000000, 34000000, 38200000,
-  40500000, 39200000,
-];
-
-const cumulativeLabels = [
-  'R1', 'R4', 'R7', 'R10', 'R13', 'R16', 'R19', 'R22',
-  'R25', 'R28', 'R31', 'R34', 'R37', 'R40', 'R43', 'R46', 'R143',
-];
-
-const spendSegments = [
-  { label: 'GEAR', value: 116551409, color: '#FF5500' },
-  { label: 'AMMO', value: 12015357, color: '#FF2233' },
-  { label: 'CONSUMABLES', value: 4246532, color: '#00CC44' },
-];
-
-const ammoUsageRows = [
-  { ammo: 'M995', family: '5.56x45', tier: 'T5', rounds: 283, unit: 7000, total: 1982800 },
-  { ammo: 'DVP88', family: '5.8x42', tier: 'T4', rounds: 883, unit: 1872, total: 1652976 },
-  { ammo: 'DVC12', family: '5.8x42', tier: 'T5', rounds: 210, unit: 7000, total: 1476707 },
-  { ammo: 'M855A1', family: '5.56x45', tier: 'T4', rounds: 1712, unit: 800, total: 1375540 },
-  { ammo: 'SS190', family: '5.7x28', tier: 'T4', rounds: 618, unit: 1980, total: 1223640 },
-  { ammo: 'AP', family: '.338 Lapua', tier: 'T6', rounds: 17, unit: 65000, total: 1105000 },
-];
-
-const consumableRows = [
-  { item: '100D MEDS', subtype: 'Medkits', qty: 24, unit: 40320, total: 967680 },
-  { item: 'M67 NADE', subtype: 'Blast', qty: 21, unit: 27115, total: 569415 },
-  { item: '4X SUR KIT', subtype: 'Treatments', qty: 24, unit: 23040, total: 552960 },
-  { item: 'SIMPLE SUR KIT', subtype: 'Treatments', qty: 211, unit: 2500, total: 527500 },
-  { item: 'STANDARD MEDS', subtype: 'Medkits', qty: 195, unit: 1920, total: 374400 },
-  { item: '8X SUR KIT', subtype: 'Treatments', qty: 4, unit: 36288, total: 145152 },
-];
-
-const totals = spendSegments.reduce((sum, item) => sum + item.value, 0);
 
 function formatMoney(value: number) {
   return `$${value.toLocaleString()}`;
@@ -55,32 +21,45 @@ function getPathFromData(values: number[], min: number, max: number) {
   const padding = 32;
   const chartHeight = height - padding * 2;
 
+  if (values.length === 0) {
+    return '';
+  }
+
+  if (values.length === 1) {
+    const y = padding + chartHeight * (1 - (values[0] - min) / (max - min || 1));
+    return `M 0 ${y.toFixed(2)} L ${width} ${y.toFixed(2)}`;
+  }
+
   return values
     .map((value, index) => {
       const x = (index / (values.length - 1)) * width;
-      const y = padding + chartHeight * (1 - (value - min) / (max - min));
+      const y = padding + chartHeight * (1 - (value - min) / (max - min || 1));
       return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
     })
     .join(' ');
 }
 
-function getPointPosition(index: number, value: number, min: number, max: number) {
+function getPointPosition(index: number, value: number, pointCount: number, min: number, max: number) {
   const width = 760;
   const height = 320;
   const padding = 32;
   const chartHeight = height - padding * 2;
-  const x = (index / (cumulativePL.length - 1)) * width;
-  const y = padding + chartHeight * (1 - (value - min) / (max - min));
+  const x = pointCount <= 1 ? width / 2 : (index / (pointCount - 1)) * width;
+  const y = padding + chartHeight * (1 - (value - min) / (max - min || 1));
   return { x, y };
 }
 
-function getDonutOffsets(data: { value: number }[]) {
+function getDonutOffsets(data: { value: number }[], total: number) {
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
 
+  if (total <= 0) {
+    return data.map(() => ({ dash: 0, offset: 0 }));
+  }
+
   return data.map((segment) => {
-    const dash = (segment.value / totals) * circumference;
+    const dash = (segment.value / total) * circumference;
     const current = { dash, offset };
     offset += dash;
     return current;
@@ -89,10 +68,20 @@ function getDonutOffsets(data: { value: number }[]) {
 
 export function Dashboard({}: DashboardProps) {
   const [viewMode, setViewMode] = useState('ECONOMY');
-  const minY = -20000000;
-  const maxY = 60000000;
-  const linePath = getPathFromData(cumulativePL, minY, maxY);
-  const donutOffsets = getDonutOffsets(spendSegments);
+  const profitCurve = useStorageQuery(['raids', 'analytics'], calculateProfitCurve);
+  const spendBreakdown = useStorageQuery(['raids', 'analytics'], calculateSpendBreakdown);
+
+  const { values: cumulativePL, labels: cumulativeLabels, minY, maxY, yAxisTicks } = profitCurve;
+  const { segments: spendSegments, total: spendTotal } = spendBreakdown;
+
+  const linePath = useMemo(
+    () => getPathFromData(cumulativePL, minY, maxY),
+    [cumulativePL, minY, maxY],
+  );
+  const donutOffsets = useMemo(
+    () => getDonutOffsets(spendSegments, spendTotal),
+    [spendSegments, spendTotal],
+  );
 
   return (
     <div className="space-y-6 dashboard-shell">
@@ -151,10 +140,14 @@ export function Dashboard({}: DashboardProps) {
                     </g>
                   );
                 })}
-                <path d={linePath} fill="none" stroke="#ff5500" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d={`${linePath} L 760 288 L 0 288 Z`} fill="url(#plGradient)" opacity="0.8" />
+                {linePath && (
+                  <>
+                    <path d={linePath} fill="none" stroke="#ff5500" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d={`${linePath} L 760 288 L 0 288 Z`} fill="url(#plGradient)" opacity="0.8" />
+                  </>
+                )}
                 {cumulativePL.map((value, index) => {
-                  const { x, y } = getPointPosition(index, value, minY, maxY);
+                  const { x, y } = getPointPosition(index, value, cumulativePL.length, minY, maxY);
                   return (
                     <g key={index}>
                       <circle cx={x} cy={y} r="5" fill="#ff5500" />
@@ -165,15 +158,17 @@ export function Dashboard({}: DashboardProps) {
                   );
                 })}
                 {cumulativeLabels.map((label, index) => {
-                  const x = (index / (cumulativeLabels.length - 1)) * 760;
+                  const x = cumulativeLabels.length <= 1
+                    ? 380
+                    : (index / (cumulativeLabels.length - 1)) * 760;
                   return (
-                    <text key={label} x={x} y="306" textAnchor="middle" fontSize="11" fill="#888888">
+                    <text key={`${label}-${index}`} x={x} y="306" textAnchor="middle" fontSize="11" fill="#888888">
                       {label}
                     </text>
                   );
                 })}
-                {[-20000000, 0, 20000000, 40000000, 60000000].map((value, index) => {
-                  const y = 32 + (1 - (value - minY) / (maxY - minY)) * 256;
+                {yAxisTicks.map((value) => {
+                  const y = 32 + (1 - (value - minY) / (maxY - minY || 1)) * 256;
                   return (
                     <text key={value} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="#888888">
                       {value.toLocaleString()}

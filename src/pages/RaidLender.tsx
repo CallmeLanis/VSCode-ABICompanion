@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Button, Input, Badge, VirtualScroll, EmptyState, Tabs, ConfirmModal } from '../components/ui';
-import { getRaids, deleteRaid } from '../utils/storage';
+import { deleteRaid } from '../utils/storage';
+import { useRaids } from '../hooks/useStorageQuery';
 import { formatCurrency, formatDateTime, formatPercentage } from '../utils/economy';
 import { STATUS_ICONS } from '../data/constants';
 import { Search, SortDesc, Plus, Clock, Target, Skull, Trash2, Eye } from 'lucide-react';
@@ -16,7 +17,7 @@ type SortField = 'timestamp' | 'netProfit' | 'roi' | 'kills';
 type FilterStatus = 'all' | RaidStatus;
 
 export function RaidLedger({ onRaidClick }: RaidLedgerProps) {
-  const raids = getRaids();
+  const raids = useRaids();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(600);
 

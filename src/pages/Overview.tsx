@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Star, MapPin, Users, TrendingUp } from 'lucide-react';
-import { getRaids, getSessions, getHighlights } from '../utils/storage';
-import { calculateDashboardAnalytics } from '../utils/analytics';
+import { useRaids, useHighlights, useStoredSessions, useDashboardAnalytics } from '../hooks/useStorageQuery';
 import { formatCurrency, formatPercentage, formatNumber } from '../utils/mockData';
 
 interface OverviewProps {
@@ -9,10 +8,10 @@ interface OverviewProps {
 }
 
 export function Overview({ onRaidClick }: OverviewProps) {
-  const analytics = useMemo(() => calculateDashboardAnalytics(), []);
-  const raids = useMemo(() => getRaids(), []);
-  const highlights = useMemo(() => getHighlights(), []);
-  const sessions = useMemo(() => getSessions(), []);
+  const analytics = useDashboardAnalytics();
+  const raids = useRaids();
+  const highlights = useHighlights();
+  const sessions = useStoredSessions();
 
   const recentRaids = useMemo(() => {
     return [...raids]

@@ -1,4 +1,5 @@
 import type { Raid, Session, Highlight, LootDBItem, LootItem, AppSettings, AnalyticsCache } from '../types';
+import { invalidateQueries } from './dataStore';
 
 const STORAGE_KEYS = {
   RAIDS: 'abi_raids',
@@ -46,6 +47,7 @@ export function getRaids(): Raid[] {
 
 export function saveRaids(raids: Raid[]): void {
   setItem(STORAGE_KEYS.RAIDS, raids);
+  invalidateQueries(['raids', 'analytics', 'sessions']);
 }
 
 export function addRaid(raid: Raid): void {
@@ -79,6 +81,7 @@ export function getSessions(): Session[] {
 
 export function saveSessions(sessions: Session[]): void {
   setItem(STORAGE_KEYS.SESSIONS, sessions);
+  invalidateQueries(['sessions', 'analytics']);
 }
 
 export function getSessionById(sessionId: string): Session | undefined {
@@ -92,6 +95,7 @@ export function getHighlights(): Highlight[] {
 
 export function saveHighlights(highlights: Highlight[]): void {
   setItem(STORAGE_KEYS.HIGHLIGHTS, highlights);
+  invalidateQueries(['highlights', 'analytics']);
 }
 
 export function addHighlight(highlight: Highlight): void {
@@ -121,6 +125,7 @@ export function getLootDBItems(): LootDBItem[] {
 
 export function saveLootDBItems(items: LootDBItem[]): void {
   setItem(STORAGE_KEYS.LOOTDB, items);
+  invalidateQueries('lootdb');
 }
 
 export function addLootDBItem(item: LootDBItem): void {
@@ -162,6 +167,7 @@ export function getStoredSettings(): Partial<AppSettings> {
 // Persist only explicit user-provided settings (do not inject defaults).
 export function saveSettings(settings: Partial<AppSettings>): void {
   setItem(STORAGE_KEYS.SETTINGS, settings);
+  invalidateQueries('settings');
 }
 
 // Analytics Cache
@@ -277,4 +283,5 @@ export function clearAllStorage(): void {
   Object.values(STORAGE_KEYS).forEach(key => {
     localStorage.removeItem(key);
   });
+  invalidateQueries(['raids', 'highlights', 'sessions', 'analytics', 'lootdb', 'settings']);
 }

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Card, Button, Input, Badge, EmptyState, Modal, NumberInput, Select } from '../components/ui';
-import { getLootDBItems, addLootDBItem, updateLootDBItem, deleteLootDBItem } from '../utils/storage';
+import { addLootDBItem, updateLootDBItem, deleteLootDBItem } from '../utils/storage';
+import { useLootDBItems } from '../hooks/useStorageQuery';
 import { formatCurrency } from '../utils/economy';
 import { RARITY_COLORS, VENDORS, AMMO_CALIBERS } from '../data/constants';
 import { Database, Plus, Search, Edit, Trash2, DollarSign, Package, TrendingDown, Store } from 'lucide-react';
@@ -51,7 +52,7 @@ const GRENADE_SUBTYPE_OPTIONS = [
 ];
 
 export function LootDB() {
-  const items = getLootDBItems();
+  const items = useLootDBItems();
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<LootDBItem | null>(null);

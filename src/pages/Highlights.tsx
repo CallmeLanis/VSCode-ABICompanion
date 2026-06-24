@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Button, EmptyState, Select } from '../components/ui';
-import { getHighlights, getRaids } from '../utils/storage';
+import { useHighlights, useRaids } from '../hooks/useStorageQuery';
 import { formatCurrency, formatDateTime } from '../utils/economy';
 import { Eye, Star, Heart } from 'lucide-react';
 import type { Highlight, Raid } from '../types';
@@ -11,8 +11,8 @@ interface HighlightsProps {
 }
 
 export function Highlights(_: HighlightsProps) {
-  const highlights = getHighlights();
-  const raids = getRaids();
+  const highlights = useHighlights();
+  const raids = useRaids();
   const [sortMode, setSortMode] = useState<'newest' | 'oldest' | 'profit'>('newest');
   const [showFavorites, setShowFavorites] = useState(false);
   const [detailRaidId, setDetailRaidId] = useState<string | null>(null);

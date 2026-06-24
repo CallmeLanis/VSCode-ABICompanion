@@ -1,8 +1,239 @@
-import type { Raid, Session, AnalyticsCache } from '../types';
+import type {
+  Raid,
+  Session,
+  AnalyticsCache,
+  ProfitCurveData,
+  SpendBreakdownData,
+  SpendSegment,
+  AmmoUsageData,
+  AmmoUsageRow,
+  ConsumableUsageData,
+  ConsumableUsageRow,
+  SessionSummary,
+} from '../types';
 import { getRaids, getSessions, getHighlights, saveAnalyticsCache, getAnalyticsCache } from './storage';
 
 // Analytics cache duration (5 minutes)
 const CACHE_DURATION = 5 * 60 * 1000;
+
+const SPEND_SEGMENT_COLORS = {
+  GEAR: '#FF5500',
+  AMMO: '#FF2233',
+  CONSUMABLES: '#00CC44',
+} as const;
+
+const DEFAULT_PROFIT_CURVE_BOUNDS = {
+  minY: -20000000,
+  maxY: 60000000,
+  yAxisTicks: [-20000000, 0, 20000000, 40000000, 60000000],
+};
+
+function buildYAxisTicks(minY: number, maxY: number): number[] {
+  if (minY === maxY) {
+    const pad = Math.max(Math.abs(minY) * 0.2, 10000);
+    return [minY - pad, minY, minY + pad];
+  }
+
+  const range = maxY - minY;
+  return [0, 1, 2, 3, 4].map((step) => Math.round(minY + (range * step) / 4));
+}
+
+function sumAmmoSpend(raids: Raid[]): number {
+  return raids.reduce(
+    (sum, raid) => sum + raid.ammo.reduce((ammoSum, ammo) => ammoSum + ammo.totalCost, 0),
+    0,
+  );
+}
+
+function sumConsumableSpend(raids: Raid[]): number {
+  return raids.reduce(
+    (sum, raid) => sum + raid.consumables.reduce((consumableSum, consumable) => consumableSum + consumable.totalCost, 0),
+    0,
+  );
+}
+
+function sumGearValue(raids: Raid[]): number {
+  return raids.reduce((sum, raid) => sum + raid.gearValue, 0);
+}
+
+/**
+ * Calculate cumulative profit curve across all raids.
+ */
+export function calculateProfitCurve(raids: Raid[] = getRaids()): ProfitCurveData {
+  const sorted = [...raids].sort((a, b) => a.timestamp - b.timestamp);
+
+  let cumulative = 0;
+  const values = sorted.map((raid) => {
+    cumulative += raid.netProfit;
+    return cumulative;
+  });
+  const labels = values.map((_, index) => `R${index + 1}`);
+
+  if (values.length === 0) {
+    return {
+      values: [],
+      labels: [],
+      ...DEFAULT_PROFIT_CURVE_BOUNDS,
+    };
+  }
+
+  const dataMin = Math.min(...values, 0);
+  const dataMax = Math.max(...values, 0);
+  const padding = Math.max((dataMax - dataMin) * 0.1, 1);
+  const minY = dataMin - padding;
+  const maxY = dataMax + padding;
+
+  return {
+    values,
+    labels,
+    minY,
+    maxY,
+    yAxisTicks: buildYAxisTicks(minY, maxY),
+  };
+}
+
+/**
+ * Calculate gear, ammo, and consumable spend segments for charts.
+ */
+export function calculateSpendBreakdown(raids: Raid[] = getRaids()): SpendBreakdownData {
+  const ammoSpent = sumAmmoSpend(raids);
+  const consumablesSpent = sumConsumableSpend(raids);
+  const gearValue = sumGearValue(raids);
+
+  const segments: SpendSegment[] = [
+    { label: 'GEAR', value: gearValue, color: SPEND_SEGMENT_COLORS.GEAR },
+    { label: 'AMMO', value: ammoSpent, color: SPEND_SEGMENT_COLORS.AMMO },
+    { label: 'CONSUMABLES', value: consumablesSpent, color: SPEND_SEGMENT_COLORS.CONSUMABLES },
+  ];
+
+  return {
+    segments,
+    total: segments.reduce((sum, segment) => sum + segment.value, 0),
+  };
+}
+
+/**
+ * Calculate top ammo usage rows for dashboard tables.
+ */
+export function calculateAmmoUsage(raids: Raid[] = getRaids(), limit = 6): AmmoUsageData {
+  const ammoMap = new Map<string, AmmoUsageRow>();
+
+  raids.forEach((raid) => {
+    raid.ammo.forEach((ammo) => {
+      const key = ammo.caliber;
+      const existing = ammoMap.get(key);
+
+      if (existing) {
+        existing.rounds += ammo.quantity;
+        existing.total += ammo.totalCost;
+        existing.unit = Math.max(existing.unit, ammo.costPerRound);
+        return;
+      }
+
+      ammoMap.set(key, {
+        ammo: ammo.caliber,
+        family: ammo.caliber,
+        tier: ammo.tier,
+        rounds: ammo.quantity,
+        unit: ammo.costPerRound,
+        total: ammo.totalCost,
+      });
+    });
+  });
+
+  const rows = Array.from(ammoMap.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
+
+  return {
+    rows,
+    totalSpend: rows.reduce((sum, row) => sum + row.total, 0),
+  };
+}
+
+/**
+ * Calculate top consumable usage rows for dashboard tables.
+ */
+export function calculateConsumableUsage(raids: Raid[] = getRaids(), limit = 6): ConsumableUsageData {
+  const consumableMap = new Map<string, ConsumableUsageRow>();
+
+  raids.forEach((raid) => {
+    raid.consumables.forEach((consumable) => {
+      const existing = consumableMap.get(consumable.name);
+
+      if (existing) {
+        existing.qty += consumable.quantity;
+        existing.total += consumable.totalCost;
+        existing.unit = Math.max(existing.unit, consumable.costPerUnit);
+        return;
+      }
+
+      consumableMap.set(consumable.name, {
+        item: consumable.name,
+        subtype: consumable.type === 'treatment' ? 'Treatments' : 'Blast',
+        qty: consumable.quantity,
+        unit: consumable.costPerUnit,
+        total: consumable.totalCost,
+      });
+    });
+  });
+
+  const rows = Array.from(consumableMap.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
+
+  return {
+    rows,
+    totalSpend: rows.reduce((sum, row) => sum + row.total, 0),
+  };
+}
+
+/**
+ * Calculate aggregated session summary metrics.
+ */
+export function calculateSessionSummary(raids: Raid[] = getRaids()): SessionSummary {
+  const sessions = aggregateSessionsFromRaids(raids);
+  const totalRaids = raids.length;
+  const totalProfit = raids.reduce((sum, raid) => sum + raid.netProfit, 0);
+  const totalInvestment = raids.reduce((sum, raid) => sum + raid.investment, 0);
+  const averageExtractionRate = sessions.length > 0
+    ? sessions.reduce((sum, session) => sum + session.extractionRate, 0) / sessions.length
+    : 0;
+  const bestSession = sessions.length > 0
+    ? sessions.reduce((best, session) => (session.totalProfit > best.totalProfit ? session : best), sessions[0])
+    : null;
+
+  return {
+    sessions,
+    totalSessions: sessions.length,
+    totalRaids,
+    totalProfit,
+    totalInvestment,
+    averageExtractionRate,
+    bestSession,
+  };
+}
+
+function aggregateSessionsFromRaids(raids: Raid[]): Session[] {
+  const sessionMap = new Map<string, Raid[]>();
+
+  raids.forEach((raid) => {
+    if (!sessionMap.has(raid.sessionId)) {
+      sessionMap.set(raid.sessionId, []);
+    }
+    sessionMap.get(raid.sessionId)!.push(raid);
+  });
+
+  const sessions: Session[] = [];
+  sessionMap.forEach((sessionRaids, sessionId) => {
+    const stats = calculateSessionStats(sessionId);
+    if (stats) {
+      sessions.push(stats);
+    }
+  });
+
+  return sessions.sort((a, b) => b.startTime - a.startTime);
+}
 
 /**
  * Check if cache is still valid
@@ -157,51 +388,7 @@ export function calculateSessionStats(sessionId: string): Session | null {
  * Aggregate sessions from raids
  */
 export function aggregateSessions(): Session[] {
-  const raids = getRaids();
-  const sessionMap = new Map<string, Raid[]>();
-
-  // Group raids by session
-  raids.forEach(raid => {
-    const sessionId = raid.sessionId;
-    if (!sessionMap.has(sessionId)) {
-      sessionMap.set(sessionId, []);
-    }
-    sessionMap.get(sessionId)!.push(raid);
-  });
-
-  // Calculate stats for each session
-  const sessions: Session[] = [];
-  sessionMap.forEach((sessionRaids, sessionId) => {
-    const sortedRaids = [...sessionRaids].sort((a, b) => a.timestamp - b.timestamp);
-    const startTime = sortedRaids[0].timestamp;
-    const endTime = sortedRaids[sortedRaids.length - 1].timestamp;
-
-    const totalInvestment = sessionRaids.reduce((sum, r) => sum + r.investment, 0);
-    const totalLoot = sessionRaids.reduce((sum, r) => sum + r.lootValue, 0);
-    const totalProfit = sessionRaids.reduce((sum, r) => sum + r.netProfit, 0);
-
-    const extractedRaids = sessionRaids.filter(r => r.status === 'EXTRACTED');
-    const extractionRate = (extractedRaids.length / sessionRaids.length) * 100;
-
-    const sortedByProfit = [...sessionRaids].sort((a, b) => b.netProfit - a.netProfit);
-    const bestRaid = sortedByProfit[0]?.id;
-    const worstRaid = sortedByProfit[sortedByProfit.length - 1]?.id;
-
-    sessions.push({
-      id: sessionId,
-      startTime,
-      endTime,
-      raidCount: sessionRaids.length,
-      totalProfit,
-      totalInvestment,
-      totalLoot,
-      extractionRate,
-      bestRaid,
-      worstRaid,
-    });
-  });
-
-  return sessions.sort((a, b) => b.startTime - a.startTime);
+  return aggregateSessionsFromRaids(getRaids());
 }
 
 /**
@@ -280,11 +467,9 @@ export function calculateEconomyBreakdown(): {
 } {
   const raids = getRaids();
 
-  const ammoSpent = raids.reduce((sum, r) =>
-    sum + r.ammo.reduce((aSum, a) => aSum + a.totalCost, 0), 0);
+  const ammoSpent = sumAmmoSpend(raids);
 
-  const consumablesSpent = raids.reduce((sum, r) =>
-    sum + r.consumables.reduce((cSum, c) => cSum + c.totalCost, 0), 0);
+  const consumablesSpent = sumConsumableSpend(raids);
 
   const gearLost = raids.reduce((sum, r) => {
     if (r.status === 'DIED' && r.gearRescue) {

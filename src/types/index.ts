@@ -163,6 +163,62 @@ export interface AnalyticsCache {
   bestSession?: Session;
 }
 
+export interface ProfitCurveData {
+  values: number[];
+  labels: string[];
+  minY: number;
+  maxY: number;
+  yAxisTicks: number[];
+}
+
+export interface SpendSegment {
+  label: string;
+  value: number;
+  color: string;
+}
+
+export interface SpendBreakdownData {
+  segments: SpendSegment[];
+  total: number;
+}
+
+export interface AmmoUsageRow {
+  ammo: string;
+  family: string;
+  tier: string;
+  rounds: number;
+  unit: number;
+  total: number;
+}
+
+export interface AmmoUsageData {
+  rows: AmmoUsageRow[];
+  totalSpend: number;
+}
+
+export interface ConsumableUsageRow {
+  item: string;
+  subtype: string;
+  qty: number;
+  unit: number;
+  total: number;
+}
+
+export interface ConsumableUsageData {
+  rows: ConsumableUsageRow[];
+  totalSpend: number;
+}
+
+export interface SessionSummary {
+  sessions: Session[];
+  totalSessions: number;
+  totalRaids: number;
+  totalProfit: number;
+  totalInvestment: number;
+  averageExtractionRate: number;
+  bestSession: Session | null;
+}
+
 // Vendor
 export interface Vendor {
   id: string;

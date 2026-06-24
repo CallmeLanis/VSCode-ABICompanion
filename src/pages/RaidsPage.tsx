@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, SortDesc, Plus, Clock, Target, Skull, Trash2, Eye, Swords, Package, Pill, Shield } from 'lucide-react';
-import { getRaids, deleteRaid, addRaid, addHighlight, getSessionId, getStoredSettings } from '../utils/storage';
+import { deleteRaid, addRaid, addHighlight, getSessionId, getStoredSettings } from '../utils/storage';
+import { useRaids } from '../hooks/useStorageQuery';
 import { RaidDetailPopup } from './RaidDetailPopup';
 import { formatCurrency, formatDateTime, formatPercentage } from '../utils/economy';
 import { STATUS_ICONS, MAPS, GAME_MODES, AMMO_CALIBERS, CONSUMABLES } from '../data/constants';
@@ -12,7 +13,7 @@ type SortField = 'timestamp' | 'netProfit' | 'roi' | 'kills';
 type FilterStatus = 'all' | RaidStatus;
 
 export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => void }) {
-  const raids = getRaids();
+  const raids = useRaids();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(600);
 
@@ -225,7 +226,7 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
     <div className="raids-split-layout" ref={containerRef}>
       {/* LEFT COLUMN: Log Raid Block (25%) */}
       <div className="raids-log-block">
-        <LogRaidBlock onRaidSaved={() => {}} />
+        <LogRaidBlock />
       </div>
 
       {/* RIGHT COLUMN: Raid Table + Stats (75%) */}
@@ -369,7 +370,7 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
 // LOG RAID BLOCK (Inline Block Component)
 // ============================================
 
-function LogRaidBlock({ onRaidSaved }: { onRaidSaved: () => void }) {
+function LogRaidBlock() {
   const settings = getStoredSettings();
 
   // Form state
@@ -497,7 +498,6 @@ function LogRaidBlock({ onRaidSaved }: { onRaidSaved: () => void }) {
       });
     }
 
-    onRaidSaved();
     handleClose();
   };
 

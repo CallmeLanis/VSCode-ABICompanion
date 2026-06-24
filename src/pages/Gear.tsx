@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { getRaids } from '../utils/storage';
 import { calculateGearAnalytics } from '../utils/analytics';
+import { useRaids, useStorageQuery } from '../hooks/useStorageQuery';
 import { formatCurrency, formatPercentage } from '../utils/mockData';
 
 export function Gear() {
-  const gearAnalytics = useMemo(() => calculateGearAnalytics(), []);
-  const raids = useMemo(() => getRaids(), []);
+  const gearAnalytics = useStorageQuery(['raids', 'analytics'], calculateGearAnalytics);
+  const raids = useRaids();
 
   const extractedRaids = useMemo(() => {
     return raids.filter(r => r.status === 'EXTRACTED');

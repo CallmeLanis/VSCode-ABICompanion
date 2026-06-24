@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Card, Badge, ProgressBar } from '../components/ui';
-import { getRaids } from '../utils/storage';
-import { calculateDashboardAnalytics, calculateGearAnalytics } from '../utils/analytics';
+import { calculateGearAnalytics } from '../utils/analytics';
+import { useDashboardAnalytics, useRaids, useStorageQuery } from '../hooks/useStorageQuery';
 import { formatCurrency, formatPercentage } from '../utils/economy';
 import { User, Trophy, Target, TrendingUp, Skull, Clock, Star, Shield, Zap } from 'lucide-react';
 
@@ -17,9 +17,9 @@ interface Achievement {
 }
 
 export function Commander() {
-  const analytics = useMemo(() => calculateDashboardAnalytics(), []);
-  const gearAnalytics = useMemo(() => calculateGearAnalytics(), []);
-  const raids = getRaids();
+  const analytics = useDashboardAnalytics();
+  const gearAnalytics = useStorageQuery(['raids', 'analytics'], calculateGearAnalytics);
+  const raids = useRaids();
 
   // Calculate lifetime records
   const records = useMemo(() => {

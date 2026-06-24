@@ -1,131 +1,34 @@
 import { useMemo } from 'react';
-import { getRaids } from '../utils/storage';
+import {
+  calculateProfitCurve,
+  calculateSpendBreakdown,
+  calculateAmmoUsage,
+  calculateConsumableUsage,
+} from '../utils/analytics';
+import { useStorageQuery } from '../hooks/useStorageQuery';
 import { formatCurrency, formatNumber } from '../utils/mockData';
 
 export function Economy() {
-  const raids = useMemo(() => getRaids(), []);
+  const profitCurve = useStorageQuery(['raids', 'analytics'], calculateProfitCurve);
+  const spendBreakdown = useStorageQuery(['raids', 'analytics'], calculateSpendBreakdown);
+  const ammoUsage = useStorageQuery(['raids', 'analytics'], calculateAmmoUsage);
+  const consumableUsage = useStorageQuery(['raids', 'analytics'], calculateConsumableUsage);
 
-  const ammoSpent = useMemo(() => {
-    return raids.reduce((sum, r) =>
-      sum + r.ammo.reduce((aSum, a) => aSum + a.totalCost, 0), 0);
-  }, [raids]);
+  const { values: cumulativePL, minY, maxY } = profitCurve;
+  const { segments: spendSegments, total: totals } = spendBreakdown;
+  const { rows: ammoUsageRows } = ammoUsage;
+  const { rows: consumableRows } = consumableUsage;
 
-  const consumablesSpent = useMemo(() => {
-    return raids.reduce((sum, r) =>
-      sum + r.consumables.reduce((cSum, c) => cSum + c.totalCost, 0), 0);
-  }, [raids]);
-
-  const gearLost = useMemo(() => {
-    return raids.reduce((sum, r) => {
-      if (r.status === 'DIED' && r.gearRescue) {
-        return sum + r.gearRescue.gearLoss;
-      } else if (r.status === 'DIED') {
-        return sum + r.gearValue;
-      }
-      return sum;
-    }, 0);
-  }, [raids]);
-
-  const totalSpend = ammoSpent + consumablesSpent + gearLost;
-
-  const cumulativePL = useMemo(() => {
-    const sorted = [...raids].sort((a, b) => a.timestamp - b.timestamp);
-    let cumulative = 0;
-    return sorted.map(raid => {
-      cumulative += raid.netProfit;
-      return cumulative;
-    });
-  }, [raids]);
-
-  const spendSegments = useMemo(() => {
-    const gearValue = raids.reduce((sum, r) => sum + r.gearValue, 0);
-    return [
-      { label: 'GEAR', value: gearValue, color: '#FF5500' },
-      { label: 'AMMO', value: ammoSpent, color: '#FF2233' },
-      { label: 'CONSUMABLES', value: consumablesSpent, color: '#00CC44' },
-    ];
-  }, [raids, ammoSpent, consumablesSpent]);
-
-  const ammoUsageRows = useMemo(() => {
-    const ammoMap = new Map<string, {
-      ammo: string;
-      family: string;
-      tier: string;
-      rounds: number;
-      unit: number;
-      total: number;
-    }>();
-
-    raids.forEach(raid => {
-      raid.ammo.forEach(ammo => {
-        const key = ammo.caliber;
-        const existing = ammoMap.get(key);
-        if (existing) {
-          existing.rounds += ammo.quantity;
-          existing.total += ammo.totalCost;
-          existing.unit = Math.max(existing.unit, ammo.costPerRound);
-        } else {
-          ammoMap.set(key, {
-            ammo: ammo.caliber,
-            family: ammo.caliber,
-            tier: ammo.tier,
-            rounds: ammo.quantity,
-            unit: ammo.costPerRound,
-            total: ammo.totalCost,
-          });
-        }
-      });
-    });
-
-    return Array.from(ammoMap.values())
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 6);
-  }, [raids]);
-
-  const consumableRows = useMemo(() => {
-    const consumableMap = new Map<string, {
-      item: string;
-      subtype: string;
-      qty: number;
-      unit: number;
-      total: number;
-    }>();
-
-    raids.forEach(raid => {
-      raid.consumables.forEach(consumable => {
-        const key = consumable.name;
-        const existing = consumableMap.get(key);
-        if (existing) {
-          existing.qty += consumable.quantity;
-          existing.total += consumable.totalCost;
-          existing.unit = Math.max(existing.unit, consumable.costPerUnit);
-        } else {
-          consumableMap.set(key, {
-            item: consumable.name,
-            subtype: consumable.type === 'treatment' ? 'Treatments' : 'Blast',
-            qty: consumable.quantity,
-            unit: consumable.costPerUnit,
-            total: consumable.totalCost,
-          });
-        }
-      });
-    });
-
-    return Array.from(consumableMap.values())
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 6);
-  }, [raids]);
-
-  const totals = spendSegments.reduce((sum, item) => sum + item.value, 0);
-
-  const minY = Math.min(...cumulativePL, 0);
-  const maxY = Math.max(...cumulativePL, 0);
   const padding = 20;
   const chartWidth = 760;
   const chartHeight = 320;
 
   const linePath = useMemo(() => {
     if (cumulativePL.length === 0) return '';
+    if (cumulativePL.length === 1) {
+      const y = padding + (chartHeight - padding * 2) * (1 - (cumulativePL[0] - minY) / (maxY - minY || 1));
+      return `M 0 ${y.toFixed(2)} L ${chartWidth} ${y.toFixed(2)}`;
+    }
     return cumulativePL
       .map((value, index) => {
         const x = (index / (cumulativePL.length - 1)) * chartWidth;
@@ -199,7 +102,7 @@ export function Economy() {
               })}
 
               {/* Y-axis labels */}
-              {[-20000000, 0, 20000000, 40000000, 60000000].map((value) => {
+              {profitCurve.yAxisTicks.map((value) => {
                 const y = padding + (chartHeight - padding * 2) * (1 - (value - minY) / (maxY - minY || 1));
                 return (
                   <text key={value} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="#888888">
@@ -336,7 +239,7 @@ export function Economy() {
                   <span />
                   <span />
                   <span className="text-sm font-bold text-red-400">
-                    {formatCurrency(ammoUsageRows.reduce((sum, r) => sum + r.total, 0))}
+                    {formatCurrency(ammoUsage.totalSpend)}
                   </span>
                 </div>
               )}
@@ -383,7 +286,7 @@ export function Economy() {
                   <span />
                   <span />
                   <span className="text-sm font-bold text-red-400">
-                    {formatCurrency(consumableRows.reduce((sum, r) => sum + r.total, 0))}
+                    {formatCurrency(consumableUsage.totalSpend)}
                   </span>
                 </div>
               )}
