@@ -6,6 +6,31 @@ Tactical raid-tracking dashboard for Arena Breakout Infinite. Log raids, track e
 
 [![Deploy to GitHub Pages](https://github.com/CallmeLanis/VSCode-ABICompanion/actions/workflows/deploy.yml/badge.svg)](https://github.com/CallmeLanis/VSCode-ABICompanion/actions/workflows/deploy.yml)
 
+## For AI assistants (ChatGPT, Claude, etc.)
+
+GitHub repo browser links are **not readable** by AI crawlers. Use these **raw text links** instead:
+
+| Document | Link |
+|----------|------|
+| **Start here** — project context | [docs/AI_CONTEXT.md](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/AI_CONTEXT.md) |
+| Architecture | [docs/ARCHITECTURE.md](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/ARCHITECTURE.md) |
+| Roadmap & questions | [docs/ROADMAP.md](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/ROADMAP.md) |
+| Source file index | [docs/FILE_INDEX.md](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/FILE_INDEX.md) |
+| LLM index | [llms.txt](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/llms.txt) |
+
+**Copy-paste prompt for ChatGPT** (enable Browse/Web):
+
+```
+Read these docs about my ABI Companion project:
+1. https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/AI_CONTEXT.md
+2. https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/ARCHITECTURE.md
+3. https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/ROADMAP.md
+
+Live demo: https://callmelanis.github.io/VSCode-ABICompanion/
+
+Advise me on product direction, what to build next, and UX improvements.
+```
+
 ## Run locally
 
 **Requirements:** Node.js 20+ and npm

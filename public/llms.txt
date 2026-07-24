@@ -1,0 +1,47 @@
+# ABI Companion — AI-readable project index
+# Repo: https://github.com/CallmeLanis/VSCode-ABICompanion
+# Live demo: https://callmelanis.github.io/VSCode-ABICompanion/
+
+> Arena Breakout Infinite tactical raid-tracking dashboard.
+> React 18 + TypeScript + Vite + Tailwind. Data stored in browser localStorage.
+
+## Start here (read these first)
+
+- Project context (vision, features, open questions):
+  https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/AI_CONTEXT.md
+
+- Architecture & data flow:
+  https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/ARCHITECTURE.md
+
+- Roadmap & advisory questions:
+  https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/ROADMAP.md
+
+- Source file index with raw links:
+  https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/FILE_INDEX.md
+
+- README:
+  https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/README.md
+
+## Key source files
+
+- App entry & routing: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/App.tsx
+- Type definitions: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/types/index.ts
+- Storage engine: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/utils/storage.ts
+- Analytics: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/utils/analytics.ts
+- Design tokens (CSS): https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/index.css
+- UI primitives: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/components/ui/index.ts
+
+## Pages
+
+- Overview: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/pages/Overview.tsx
+- Raids (core): https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/pages/RaidsPage.tsx
+- Economy: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/pages/Economy.tsx
+- Performance: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/pages/Performance.tsx
+- Settings: https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/src/pages/Settings.tsx
+
+## Notes for AI assistants
+
+- Do NOT use github.com repo browser URLs — they are JavaScript-rendered and unreadable to crawlers.
+- Use raw.githubusercontent.com links above, or the live demo for UI behavior.
+- This is a local-first app: no backend required; Supabase dep exists but is not wired yet.
+- Visual identity: tactical AAA game HUD (Arena Breakout / Tarkov style), Oxanium font, warm dark palette.
