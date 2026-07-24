@@ -126,45 +126,47 @@ export function Commander() {
   }, [raids]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-enter">
       {/* Profile Header */}
-      <Card className="p-6">
-        <div className="flex items-center gap-6">
+      <Card className="p-6 relative overflow-hidden">
+        <div className="corner-accent top-left" />
+        <div className="corner-accent top-right" />
+        <div className="flex items-center gap-6 flex-wrap">
           {/* Avatar */}
-          <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-abi-orange to-abi-orange-dark flex items-center justify-center shadow-glow">
-            <User size={48} className="text-white" />
+          <div className="w-20 h-20 border border-abi-orange/50 bg-abi-orange/10 flex items-center justify-center">
+            <User size={40} className="text-abi-orange" strokeWidth={1.5} />
           </div>
 
           {/* Info */}
           <div>
             <Badge variant="orange" size="sm">{prestigeLevel.title}</Badge>
-            <h1 className="text-2xl font-bold text-abi-text mt-2">Commander</h1>
-            <div className="flex items-center gap-4 mt-2 text-sm text-abi-text-muted">
-              <span>Prestige Level {prestigeLevel.level}</span>
-              <span>|</span>
-              <span>{raids.length} raids completed</span>
+            <h1 className="text-2xl font-bold font-orbitron text-abi-text mt-2">Commander</h1>
+            <div className="flex items-center gap-4 mt-2 font-mono text-[11px] text-abi-text-muted uppercase tracking-wider">
+              <span>Prestige {prestigeLevel.level}</span>
+              <span className="text-abi-border">|</span>
+              <span>{raids.length} raids</span>
             </div>
           </div>
 
           {/* Stats */}
           <div className="ml-auto grid grid-cols-3 gap-8 text-center">
             <div>
-              <p className={`text-2xl font-bold ${analytics.lifetimeProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <p className={`text-2xl font-bold font-orbitron tabular-nums ${analytics.lifetimeProfit >= 0 ? 'text-abi-success' : 'text-abi-danger'}`}>
                 ${formatCurrency(analytics.lifetimeProfit)}
               </p>
-              <p className="text-xs text-abi-text-muted">Lifetime Profit</p>
+              <p className="font-mono text-[10px] text-abi-text-muted uppercase tracking-wider mt-1">Lifetime profit</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-abi-text">
+              <p className="text-2xl font-bold font-orbitron tabular-nums text-abi-text">
                 {formatPercentage(analytics.extractionRate)}
               </p>
-              <p className="text-xs text-abi-text-muted">Extraction Rate</p>
+              <p className="font-mono text-[10px] text-abi-text-muted uppercase tracking-wider mt-1">Extraction</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-abi-text">
+              <p className="text-2xl font-bold font-orbitron tabular-nums text-abi-text">
                 {analytics.totalRaids}
               </p>
-              <p className="text-xs text-abi-text-muted">Total Raids</p>
+              <p className="font-mono text-[10px] text-abi-text-muted uppercase tracking-wider mt-1">Total raids</p>
             </div>
           </div>
         </div>

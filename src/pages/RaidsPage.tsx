@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, SortDesc, Plus, Clock, Target, Skull, Trash2, Eye, Swords, Package, Pill, Shield } from 'lucide-react';
+import { Search, SortDesc, Clock, Target, Skull, Trash2, Eye, Swords, Package, Pill, Shield } from 'lucide-react';
 import { deleteRaid, addRaid, addHighlight, getSessionId, getStoredSettings } from '../utils/storage';
 import { useRaids } from '../hooks/useStorageQuery';
 import { RaidDetailPopup } from './RaidDetailPopup';
@@ -7,10 +7,12 @@ import { formatCurrency, formatDateTime, formatPercentage } from '../utils/econo
 import { STATUS_ICONS, MAPS, GAME_MODES, AMMO_CALIBERS, CONSUMABLES } from '../data/constants';
 import { generateId } from '../utils/storage';
 import { calculateRaidEconomy, calculateGearRescue } from '../utils/economy';
+import { Caption, DataValue, EmptyState, MapName, PageHeader, StatusBadge } from '../components/ui';
 import type { Raid, RaidStatus, AmmoEntry, ConsumableEntry, GearRescueData } from '../types';
 
 type SortField = 'timestamp' | 'netProfit' | 'roi' | 'kills';
 type FilterStatus = 'all' | RaidStatus;
+type Density = 'compact' | 'economy' | 'combat';
 
 export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => void }) {
   const raids = useRaids();
@@ -21,6 +23,7 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [sortField, setSortField] = useState<SortField>('timestamp');
+  const [density, setDensity] = useState<Density>('economy');
 
   // Modals
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -30,7 +33,7 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
   useEffect(() => {
     const updateHeight = () => {
       if (containerRef.current) {
-        setContainerHeight(containerRef.current.clientHeight - 60);
+        setContainerHeight(Math.max(360, containerRef.current.clientHeight - 60));
       }
     };
     updateHeight();
@@ -125,71 +128,59 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
       >
         {/* Status */}
         <div className="raids-table-cell status">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold ${
-            raid.status === 'EXTRACTED' ? 'bg-green-900/30 text-green-400 border border-green-700/50' :
-            raid.status === 'DIED' ? 'bg-red-900/30 text-red-400 border border-red-700/50' :
-            'bg-yellow-900/30 text-yellow-400 border border-yellow-700/50'
-          }`}>
-            {statusIcon} {raid.status}
-          </span>
+          <StatusBadge status={raid.status} icon={statusIcon} />
         </div>
 
         {/* Map & Mode */}
         <div className="raids-table-cell">
-          <p className="text-sm font-medium text-abi-text">{raid.map}</p>
-          <p className="text-xs text-abi-text-dim">{raid.mode}</p>
+          <MapName className="block">{raid.map}</MapName>
+          <Caption tone="muted" className="block mt-[var(--space-value-meta)]">{raid.mode}</Caption>
         </div>
 
         {/* Date */}
         <div className="raids-table-cell">
-          <p className="text-xs text-abi-text-muted">{formatDateTime(raid.timestamp)}</p>
+          <Caption>{formatDateTime(raid.timestamp)}</Caption>
         </div>
 
         {/* Duration */}
         <div className="raids-table-cell flex items-center gap-1 text-abi-text-dim">
           <Clock size={12} />
-          <span className="text-sm">{raid.duration}m</span>
+          <span className="text-sm tabular-nums">{raid.duration}m</span>
         </div>
 
         {/* Combat */}
         <div className="raids-table-cell flex items-center gap-1 text-abi-text-dim">
           <Target size={12} />
-          <span className="text-sm">{raid.kills}</span>
-          <Skull size={12} className="text-red-400" />
-          <span className="text-sm">{raid.deaths}</span>
+          <span className="text-sm tabular-nums">{raid.kills}</span>
+          <Skull size={12} className="text-abi-danger" />
+          <span className="text-sm tabular-nums">{raid.deaths}</span>
         </div>
 
         {/* Investment */}
         <div className="raids-table-cell text-right">
-          <p className="text-sm text-abi-text">${formatCurrency(raid.investment)}</p>
+          <DataValue>${formatCurrency(raid.investment)}</DataValue>
         </div>
 
         {/* Loot */}
         <div className="raids-table-cell text-right">
-          <p className="text-sm text-green-400">${formatCurrency(raid.lootValue)}</p>
+          <DataValue tone="positive">${formatCurrency(raid.lootValue)}</DataValue>
         </div>
 
         {/* Net Profit */}
         <div className={`raids-table-cell text-right ${raid.netProfit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-          <p className="text-lg font-bold">
+          <DataValue tone={raid.netProfit >= 0 ? 'positive' : 'negative'}>
             {raid.netProfit >= 0 ? '+' : ''}${formatCurrency(raid.netProfit)}
-          </p>
+          </DataValue>
         </div>
 
         {/* ROI */}
         <div className={`raids-table-cell text-right ${raid.roi >= 0 ? 'roi-positive' : 'roi-negative'}`}>
-          <p className="text-sm">{formatPercentage(raid.roi)}</p>
+          <DataValue tone={raid.roi >= 0 ? 'positive' : 'negative'}>{formatPercentage(raid.roi)}</DataValue>
         </div>
-
-        {/* Highlight indicator */}
-        {isHighlight && (
-          <div className="raids-table-cell flex justify-center">
-            <span className="text-abi-orange text-lg">★</span>
-          </div>
-        )}
 
         {/* Action buttons */}
         <div className="raids-table-actions">
+          {isHighlight && <span className="text-abi-orange text-sm mr-1" title="Highlight">★</span>}
           <button
             onClick={(e) => handleDetailClick(e, raid.id)}
             className="p-1.5 rounded hover:bg-abi-orange/20 text-abi-text-dim hover:text-abi-orange transition-colors"
@@ -199,7 +190,7 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
           </button>
           <button
             onClick={(e) => handleDeleteClick(e, raid.id)}
-            className="p-1.5 rounded hover:bg-red-900/30 text-abi-text-dim hover:text-red-400 transition-colors"
+            className="p-1.5 rounded hover:bg-abi-danger/20 text-abi-text-dim hover:text-abi-danger transition-colors"
             title="Delete raid"
           >
             <Trash2 size={14} />
@@ -223,7 +214,15 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
   }, [filteredRaids]);
 
   return (
-    <div className="raids-split-layout" ref={containerRef}>
+    <div className="page-enter space-y-4">
+      <PageHeader
+        eyebrow="Field operations"
+        title="Raids"
+        meta={`${raids.length} logged · ${filteredRaids.length} shown`}
+        actions={<span className="hud-chip text-abi-orange">{raids.length} logged</span>}
+      />
+
+      <div className="raids-split-layout" ref={containerRef}>
       {/* LEFT COLUMN: Log Raid Block (25%) */}
       <div className="raids-log-block">
         <LogRaidBlock />
@@ -231,17 +230,33 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
 
       {/* RIGHT COLUMN: Raid Table + Stats (75%) */}
       <div className="raids-content-block">
-        <div className="raids-table-wrapper">
+        <div className="raids-table-wrapper" data-density={density}>
           {/* Header */}
           <div className="raids-table-header">
             <div>
-              <h2>Raid Ledger</h2>
-              <p className="text-xs text-abi-text-muted mt-1">
-                {filteredRaids.length} raids • ${formatCurrency(stats.totalProfit)} total
+              <h2>Raid ledger</h2>
+              <p className="text-xs text-abi-text-muted mt-1 font-mono">
+                {filteredRaids.length} raids · ${formatCurrency(stats.totalProfit)} net
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-abi-text-dim uppercase tracking-wider">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <div className="flex gap-1">
+                {([
+                  ['economy', 'Eco'],
+                  ['combat', 'Combat'],
+                  ['compact', 'Compact'],
+                ] as [Density, string][]).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setDensity(id)}
+                    className={`filter-tab ${density === id ? 'active' : ''}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-abi-text-dim uppercase tracking-wider font-mono">
                 Sort: {getSortLabel()}
               </span>
               <button
@@ -254,8 +269,18 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
             </div>
           </div>
 
-          {/* Filters */}
+          {/* Unified filters */}
           <div className="raids-filters">
+            <div className="relative flex-1 min-w-[160px] max-w-xs">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-abi-text-dim" />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search map, mode, loot…"
+                className="w-full pl-8 pr-3 py-1.5 bg-abi-bg border border-abi-border rounded-md text-sm text-abi-text placeholder:text-abi-text-dim focus:outline-none focus:border-abi-orange"
+              />
+            </div>
             <div className="filter-tabs">
               {(['all', 'EXTRACTED', 'DIED'] as FilterStatus[]).map((tab) => (
                 <button
@@ -288,12 +313,16 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
             {filteredRaids.length > 0 ? (
               filteredRaids.map(raid => renderRaidRow(raid))
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Skull size={48} className="text-abi-text-dim mb-4" />
-                <p className="text-abi-text-muted text-sm mb-2">No raids found</p>
-                <p className="text-abi-text-dim text-xs">
-                  {raids.length === 0 ? "Log your first raid to get started" : "Try adjusting your filters"}
-                </p>
+              <div className="p-6">
+                <EmptyState
+                  icon={<Skull size={36} />}
+                  title={raids.length === 0 ? 'No raids yet' : 'No matching raids'}
+                  description={
+                    raids.length === 0
+                      ? 'Use the log panel to record your first raid.'
+                      : 'Try clearing search or switching status filter.'
+                  }
+                />
               </div>
             )}
           </div>
@@ -302,11 +331,11 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
           {filteredRaids.length > 0 && (
             <div className="raids-stats-row">
               <div className="raids-stat-item">
-                <div className="stat-label">Total Invested</div>
+                <div className="stat-label">Total invested</div>
                 <div className="stat-value">${formatCurrency(stats.totalInvestment)}</div>
               </div>
               <div className="raids-stat-item">
-                <div className="stat-label">Total Profit</div>
+                <div className="stat-label">Total profit</div>
                 <div className={`stat-value ${stats.totalProfit >= 0 ? 'positive' : 'negative'}`}>
                   {stats.totalProfit >= 0 ? '+' : ''}${formatCurrency(stats.totalProfit)}
                 </div>
@@ -318,33 +347,34 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
                 </div>
               </div>
               <div className="raids-stat-item">
-                <div className="stat-label">Extract Rate</div>
+                <div className="stat-label">Extract rate</div>
                 <div className="stat-value">{stats.extractRate.toFixed(1)}%</div>
               </div>
             </div>
           )}
         </div>
       </div>
+    </div>
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
         <div className="modal-wrapper" onClick={() => setDeleteConfirmId(null)}>
           <div className="modal-container" style={{ width: '400px', height: 'auto', maxHeight: 'none' }} onClick={(e) => e.stopPropagation()}>
             <div className="main-modal" style={{ position: 'relative', opacity: 1, filter: 'none', pointerEvents: 'auto', transform: 'none' }}>
-              <h3 className="text-lg font-bold text-abi-text mb-2">Delete Raid</h3>
+              <h3 className="font-mono text-xs uppercase tracking-[0.14em] text-abi-text mb-2">Delete raid</h3>
               <p className="text-sm text-abi-text-muted mb-6">
-                Are you sure you want to delete this raid? This action cannot be undone.
+                This raid will be removed from local storage. This cannot be undone.
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeleteConfirmId(null)}
-                  className="px-4 py-2 border border-abi-border rounded-lg text-sm text-abi-text-muted hover:text-abi-text hover:border-abi-orange transition-colors"
+                  className="px-4 py-2 border border-abi-border rounded-md text-sm font-mono uppercase tracking-wider text-abi-text-muted hover:text-abi-text hover:border-abi-orange transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-white font-semibold transition-colors"
+                  className="px-4 py-2 bg-abi-danger hover:brightness-110 rounded-md text-sm text-white font-mono uppercase tracking-wider font-semibold transition-colors"
                 >
                   Delete
                 </button>

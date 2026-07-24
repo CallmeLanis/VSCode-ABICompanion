@@ -6,6 +6,7 @@ import {
 import { useStorageQuery } from '../hooks/useStorageQuery';
 import { DashboardCard } from '../components/dashboard/DashboardWidgets';
 import type { Page } from '../components/Navigation';
+import { PageHeader } from '../components/ui/PageHeader';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
@@ -84,44 +85,44 @@ export function Dashboard({}: DashboardProps) {
   );
 
   return (
-    <div className="space-y-6 dashboard-shell">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="hud-label text-xs tracking-[0.3em] mb-2">ECONOMY VIEW</p>
-          <h1 className="text-4xl lg:text-5xl font-black text-abi-text">Tactical Spend Intelligence</h1>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <span className="hud-chip rounded-full px-4 py-2 tracking-[0.24em] text-xs uppercase text-abi-orange border border-abi-orange/25">
-            View: {viewMode}
-          </span>
-          <select
-            className="bg-[#111118] border border-abi-border text-sm text-abi-text px-3 py-2 rounded-lg focus:outline-none focus:border-abi-orange"
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value)}
-          >
-            <option value="OPS">OPS</option>
-            <option value="ECONOMY">ECONOMY</option>
-            <option value="FIELD">FIELD</option>
-          </select>
-        </div>
-      </div>
+    <div className="space-y-6 dashboard-shell page-enter">
+      <PageHeader
+        eyebrow="Economy view"
+        title="Spend intelligence"
+        actions={
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <span className="hud-chip text-abi-orange">View: {viewMode}</span>
+            <select
+              className="bg-abi-bg border border-abi-border text-sm text-abi-text px-3 py-2 rounded-md focus:outline-none focus:border-abi-orange font-mono"
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value)}
+            >
+              <option value="OPS">OPS</option>
+              <option value="ECONOMY">ECONOMY</option>
+              <option value="FIELD">FIELD</option>
+            </select>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-[60%_40%] gap-4">
         <div className="space-y-4">
           <DashboardCard className="min-h-[420px] overflow-hidden">
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="hud-label mb-2">CUMULATIVE P/L</p>
-                <h2 className="text-2xl font-black text-abi-text">All Raids</h2>
+                <p className="hud-label mb-2">Cumulative P/L</p>
+                <h2 className="text-xl font-bold font-orbitron text-abi-text">All raids</h2>
               </div>
-              <span className="text-xs uppercase tracking-[0.28em] text-abi-text-muted mt-1">ALL RAIDS</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-abi-text-muted mt-1">
+                All raids
+              </span>
             </div>
             <div className="relative">
               <svg viewBox="0 0 760 320" className="w-full h-[320px]">
                 <defs>
                   <linearGradient id="plGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#ff5500" stopOpacity="0.22" />
-                    <stop offset="100%" stopColor="#ff5500" stopOpacity="0" />
+                    <stop offset="0%" stopColor="var(--text-accent)" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="var(--text-accent)" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 {[0, 1, 2, 3].map((row) => {
@@ -142,7 +143,7 @@ export function Dashboard({}: DashboardProps) {
                 })}
                 {linePath && (
                   <>
-                    <path d={linePath} fill="none" stroke="#ff5500" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d={linePath} fill="none" stroke="var(--text-accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     <path d={`${linePath} L 760 288 L 0 288 Z`} fill="url(#plGradient)" opacity="0.8" />
                   </>
                 )}
@@ -150,7 +151,7 @@ export function Dashboard({}: DashboardProps) {
                   const { x, y } = getPointPosition(index, value, cumulativePL.length, minY, maxY);
                   return (
                     <g key={index}>
-                      <circle cx={x} cy={y} r="5" fill="#ff5500" />
+                      <circle cx={x} cy={y} r="5" fill="var(--text-accent)" />
                       <circle cx={x} cy={y} r="10" fill="transparent">
                         <title>{`${cumulativeLabels[index]} • ${formatMoney(value)}`}</title>
                       </circle>
@@ -162,7 +163,7 @@ export function Dashboard({}: DashboardProps) {
                     ? 380
                     : (index / (cumulativeLabels.length - 1)) * 760;
                   return (
-                    <text key={`${label}-${index}`} x={x} y="306" textAnchor="middle" fontSize="11" fill="#888888">
+                    <text key={`${label}-${index}`} x={x} y="306" textAnchor="middle" fontSize="11" fill="var(--text-muted)">
                       {label}
                     </text>
                   );
@@ -170,7 +171,7 @@ export function Dashboard({}: DashboardProps) {
                 {yAxisTicks.map((value) => {
                   const y = 32 + (1 - (value - minY) / (maxY - minY || 1)) * 256;
                   return (
-                    <text key={value} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="#888888">
+                    <text key={value} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="var(--text-muted)">
                       {value.toLocaleString()}
                     </text>
                   );
@@ -216,8 +217,8 @@ export function Dashboard({}: DashboardProps) {
                       </circle>
                     );
                   })}
-                  <text x="110" y="112" textAnchor="middle" fontSize="14" fill="#ffffff" fontWeight="700">Spend</text>
-                  <text x="110" y="132" textAnchor="middle" fontSize="10" fill="#888888">Breakdown</text>
+                  <text x="110" y="112" textAnchor="middle" fontSize="14" fill="var(--text-primary)" fontWeight="700">Spend</text>
+                  <text x="110" y="132" textAnchor="middle" fontSize="10" fill="var(--text-muted)">Breakdown</text>
                 </svg>
               </div>
               <div className="space-y-3">

@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Card, Button, Input, Badge, EmptyState, Modal, NumberInput, Select } from '../components/ui';
+import { Card, Button, Input, Badge, EmptyState, Modal, NumberInput, Select, PageHeader } from '../components/ui';
 import { addLootDBItem, updateLootDBItem, deleteLootDBItem } from '../utils/storage';
 import { useLootDBItems } from '../hooks/useStorageQuery';
 import { formatCurrency } from '../utils/economy';
 import { RARITY_COLORS, VENDORS, AMMO_CALIBERS } from '../data/constants';
-import { Database, Plus, Search, Edit, Trash2, DollarSign, Package, TrendingDown, Store } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, DollarSign, Package, TrendingDown, Store } from 'lucide-react';
 import type { LootDBItem } from '../types';
 
 const RARITY_OPTIONS = [
@@ -68,22 +68,17 @@ export function LootDB() {
   }, [items, search]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-abi-text flex items-center gap-2">
-            <Database className="text-abi-orange" size={28} />
-            LootDB
-          </h1>
-          <p className="text-abi-text-muted text-sm mt-1">
-            {items.length} items in database
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => setShowAddModal(true)} glow>
-          <Plus size={18} className="mr-1" /> Add Item
-        </Button>
-      </div>
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        eyebrow="Item database"
+        title="Loot DB"
+        meta={`${items.length} items`}
+        actions={
+          <Button variant="primary" onClick={() => setShowAddModal(true)}>
+            <Plus size={16} className="mr-1" /> Add item
+          </Button>
+        }
+      />
 
       {/* Search */}
       <Input

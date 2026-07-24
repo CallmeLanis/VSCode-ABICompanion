@@ -58,10 +58,8 @@ export function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
       onClick={onClose}
     >
-      {/* Backdrop with blur */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-abi-bg/80 backdrop-blur-sm" />
 
-      {/* Modal content */}
       <div
         className={`
           relative bg-abi-bg-elevated border border-abi-border rounded-xl
@@ -70,31 +68,31 @@ export function Modal({
         `}
         onClick={stopPropagation}
       >
-        {/* Header */}
         {(title || showClose) && (
           <div className="flex items-center justify-between px-4 py-3 border-b border-abi-border shrink-0">
             {title && (
-              <h2 className="text-lg font-semibold text-abi-text">{title}</h2>
+              <h2 className="type-heading text-primary">
+                {title}
+              </h2>
             )}
             {showClose && (
               <button
                 onClick={onClose}
                 className="
-                  w-8 h-8 flex items-center justify-center rounded-lg
+                  w-8 h-8 flex items-center justify-center rounded-md
                   text-abi-text-muted hover:text-abi-text hover:bg-abi-bg-hover
+                  border border-transparent hover:border-abi-border
                   transition-colors duration-200
                 "
+                aria-label="Close"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             )}
           </div>
         )}
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );
@@ -122,21 +120,21 @@ export function ConfirmModal({
   variant = 'primary',
 }: ConfirmModalProps) {
   const variantStyles = {
-    danger: 'from-red-600 to-red-700 hover:from-red-500 hover:to-red-600',
-    warning: 'from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600',
-    primary: 'from-abi-orange to-abi-orange-dark hover:from-abi-orange-light hover:to-abi-orange',
+    danger: 'bg-abi-danger text-abi-bg hover:brightness-110',
+    warning: 'bg-abi-warning text-abi-bg hover:brightness-110',
+    primary: 'bg-abi-orange text-abi-bg hover:bg-abi-orange-light',
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="space-y-4">
-        <p className="text-abi-text-muted">{message}</p>
+        <p className="text-abi-text-muted text-sm leading-relaxed">{message}</p>
         <div className="flex gap-3 justify-end">
           <button
             onClick={onClose}
             className="
-              px-4 py-2 rounded-lg bg-abi-bg-card border border-abi-border
-              text-abi-text hover:bg-abi-bg-hover transition-colors
+              px-4 py-2 rounded-md border border-abi-border font-mono text-[0.7rem]
+              uppercase tracking-wider text-abi-text hover:bg-abi-bg-hover transition-colors
             "
           >
             {cancelText}
@@ -147,9 +145,8 @@ export function ConfirmModal({
               onClose();
             }}
             className={`
-              px-4 py-2 rounded-lg text-white font-semibold
-              bg-gradient-to-r ${variantStyles[variant]}
-              transition-all duration-200
+              px-4 py-2 rounded-md font-mono text-[0.7rem] uppercase tracking-wider font-semibold
+              transition-all duration-200 ${variantStyles[variant]}
             `}
           >
             {confirmText}

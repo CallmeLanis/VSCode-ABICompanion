@@ -16,7 +16,7 @@ export function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm text-abi-text-muted mb-1">
+        <label className="block type-label text-secondary mb-[var(--space-label-value)]">
           {label}
         </label>
       )}
@@ -28,19 +28,19 @@ export function Input({
         )}
         <input
           className={`
-            w-full bg-abi-bg-elevated border border-abi-border rounded-lg
-            px-4 py-2 text-abi-text placeholder-abi-text-dim
-            focus:outline-none focus:border-abi-orange focus:ring-1 focus:ring-abi-orange/30
-            transition-all duration-200
+            w-full bg-abi-bg border border-abi-border rounded-md
+            px-3 py-2 type-body text-primary placeholder-abi-text-dim
+            focus:outline-none focus:border-abi-orange focus:ring-1 focus:ring-abi-orange/25
+            transition-colors duration-200
             ${icon ? 'pl-10' : ''}
-            ${error ? 'border-red-500' : ''}
+            ${error ? 'border-abi-danger' : ''}
             ${className}
           `.replace(/\s+/g, ' ').trim()}
           {...props}
         />
       </div>
       {error && (
-        <p className="text-xs text-red-400 mt-1">{error}</p>
+        <p className="type-caption text-negative mt-[var(--space-value-meta)]">{error}</p>
       )}
     </div>
   );
@@ -62,35 +62,36 @@ export function Select({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm text-abi-text-muted mb-1">
+        <label className="block type-label text-secondary mb-[var(--space-label-value)]">
           {label}
         </label>
       )}
       <select
         className={`
-          w-full bg-abi-bg-elevated border border-abi-border rounded-lg
-          px-4 py-2 text-abi-text
-          focus:outline-none focus:border-abi-orange focus:ring-1 focus:ring-abi-orange/30
-          transition-all duration-200 cursor-pointer
-          ${error ? 'border-red-500' : ''}
+          w-full bg-abi-bg border border-abi-border rounded-md
+          px-3 py-2 type-body text-primary
+          focus:outline-none focus:border-abi-orange focus:ring-1 focus:ring-abi-orange/25
+          transition-colors duration-200 cursor-pointer
+          ${error ? 'border-abi-danger' : ''}
           ${className}
         `.replace(/\s+/g, ' ').trim()}
         {...props}
       >
-        {options.map(option => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
       </select>
       {error && (
-        <p className="text-xs text-red-400 mt-1">{error}</p>
+        <p className="type-caption text-negative mt-[var(--space-value-meta)]">{error}</p>
       )}
     </div>
   );
 }
 
-interface NumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
+interface NumberInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
   label?: string;
   value?: number;
   onChange: (value?: number) => void;
@@ -152,7 +153,7 @@ export function Checkbox({
         checked={checked}
         onChange={onChange}
         className="
-          w-4 h-4 rounded border-abi-border bg-abi-bg-elevated
+          w-4 h-4 rounded-sm border-abi-border bg-abi-bg
           checked:bg-abi-orange checked:border-abi-orange
           focus:ring-abi-orange/30 focus:ring-offset-0
           cursor-pointer transition-colors

@@ -14,23 +14,24 @@ export function Badge({
   className = '',
 }: BadgeProps) {
   const variantStyles = {
-    default: 'bg-abi-bg-hover text-abi-text-muted border-abi-border',
-    success: 'bg-green-900/30 text-green-400 border-green-700/30',
-    warning: 'bg-yellow-900/30 text-yellow-400 border-yellow-700/30',
-    danger: 'bg-red-900/30 text-red-400 border-red-700/30',
-    info: 'bg-blue-900/30 text-blue-400 border-blue-700/30',
-    orange: 'bg-abi-orange/20 text-abi-orange border-abi-orange/30',
+    default: 'bg-abi-bg-hover text-secondary border-abi-border',
+    success: 'bg-abi-success/15 text-positive border-abi-success/30',
+    warning: 'bg-abi-warning/15 text-warning border-abi-warning/30',
+    danger: 'bg-abi-danger/15 text-negative border-abi-danger/30',
+    info: 'bg-abi-bg-hover text-secondary border-abi-border',
+    orange: 'bg-abi-orange/15 text-accent border-abi-orange/35',
   };
 
+  // Status geometry is intentionally invariant: variants only alter semantic color.
   const sizeStyles = {
-    sm: 'px-1.5 py-0.5 text-xs',
-    md: 'px-2 py-1 text-sm',
+    sm: 'h-6 px-2',
+    md: 'h-6 px-2',
   };
 
   return (
     <span
       className={`
-        inline-flex items-center gap-1 rounded border font-medium
+        inline-flex items-center gap-1 rounded-sm border type-badge
         ${variantStyles[variant]}
         ${sizeStyles[size]}
         ${className}
@@ -47,25 +48,18 @@ interface TagProps {
   className?: string;
 }
 
-export function Tag({
-  children,
-  onRemove,
-  className = '',
-}: TagProps) {
+export function Tag({ children, onRemove, className = '' }: TagProps) {
   return (
     <span
       className={`
-        inline-flex items-center gap-1 px-2 py-0.5 rounded
-        bg-abi-bg-hover text-abi-text-muted text-sm
+        inline-flex items-center gap-1 px-2 py-0.5 rounded-sm
+        bg-abi-bg-hover text-abi-text-muted text-sm border border-abi-border
         ${className}
       `.replace(/\s+/g, ' ').trim()}
     >
       {children}
       {onRemove && (
-        <button
-          onClick={onRemove}
-          className="hover:text-abi-orange transition-colors"
-        >
+        <button onClick={onRemove} className="hover:text-abi-orange transition-colors">
           ×
         </button>
       )}
@@ -94,37 +88,37 @@ export function ProgressBar({
 
   const variantStyles = {
     default: 'bg-abi-text-muted',
-    success: 'bg-green-500',
-    warning: 'bg-yellow-500',
-    danger: 'bg-red-500',
+    success: 'bg-abi-success',
+    warning: 'bg-abi-warning',
+    danger: 'bg-abi-danger',
     orange: 'bg-abi-orange',
-    info: 'bg-blue-500',
+    info: 'bg-abi-info',
   };
 
   const sizeStyles = {
     sm: 'h-1',
-    md: 'h-2',
-    lg: 'h-3',
+    md: 'h-1.5',
+    lg: 'h-2.5',
   };
 
   return (
     <div className={`w-full ${className}`}>
       <div
         className={`
-          w-full bg-abi-bg-hover rounded-full overflow-hidden
+          w-full bg-abi-bg-hover overflow-hidden rounded-sm
           ${sizeStyles[size]}
         `.replace(/\s+/g, ' ').trim()}
       >
         <div
           className={`
-            h-full rounded-full transition-all duration-300
+            h-full transition-all duration-300
             ${variantStyles[variant]}
           `.replace(/\s+/g, ' ').trim()}
           style={{ width: `${percentage}%` }}
         />
       </div>
       {showLabel && (
-        <p className="text-xs text-abi-text-muted mt-1 text-right">
+        <p className="text-xs text-abi-text-muted mt-1 text-right font-mono tabular-nums">
           {percentage.toFixed(0)}%
         </p>
       )}
@@ -137,7 +131,5 @@ interface DividerProps {
 }
 
 export function Divider({ className = '' }: DividerProps) {
-  return (
-    <div className={`h-px bg-abi-border my-4 ${className}`} />
-  );
+  return <div className={`h-px bg-abi-border my-4 ${className}`} />;
 }

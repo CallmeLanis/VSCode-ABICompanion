@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { calculateGearAnalytics } from '../utils/analytics';
 import { useRaids, useStorageQuery } from '../hooks/useStorageQuery';
 import { formatCurrency, formatPercentage } from '../utils/mockData';
+import { PageHeader } from '../components/ui/PageHeader';
 
 export function Gear() {
   const gearAnalytics = useStorageQuery(['raids', 'analytics'], calculateGearAnalytics);
@@ -20,19 +21,12 @@ export function Gear() {
   const totalGearValueBrought = gearAnalytics.totalGearValueBrought;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="hud-label text-xs tracking-[0.3em] mb-2">TACTICAL GEAR</p>
-          <h1 className="text-4xl lg:text-5xl font-black text-abi-text">Gear Analytics</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hud-chip rounded-full px-4 py-2 tracking-[0.24em] text-xs uppercase text-abi-orange border border-abi-orange/25">
-            Lifetime Stats
-          </span>
-        </div>
-      </div>
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        eyebrow="Tactical gear"
+        title="Gear analytics"
+        actions={<span className="hud-chip text-abi-orange">Lifetime</span>}
+      />
 
       {/* Top Row: 6 Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">

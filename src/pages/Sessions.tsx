@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Card, Badge, EmptyState, Modal, Divider } from '../components/ui';
+import { Card, Badge, Caption, DataValue, DisplayValue, EmptyState, MapName, MetaLabel, Modal, Divider, PageHeader, StatusBadge } from '../components/ui';
 import { formatCurrency, formatDateTime, formatPercentage } from '../utils/economy';
 import { useAggregatedSessions, useRaids } from '../hooks/useStorageQuery';
 import { STATUS_ICONS } from '../data/constants';
@@ -21,12 +21,12 @@ export function Sessions({ onRaidClick }: SessionsProps) {
   }, [selectedSession, raids]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-abi-text">Sessions</h1>
-        <p className="text-abi-text-muted text-sm mt-1">Track your play sessions</p>
-      </div>
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        eyebrow="Session log"
+        title="Sessions"
+        meta="Track play blocks and raid streaks"
+      />
 
       {/* Sessions Grid */}
       {sessions.length > 0 ? (
@@ -41,9 +41,9 @@ export function Sessions({ onRaidClick }: SessionsProps) {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Calendar size={16} className="text-abi-orange" />
-                  <span className="text-sm text-abi-text-muted">
+                  <Caption>
                     {formatDateTime(session.startTime)}
-                  </span>
+                  </Caption>
                 </div>
                 <Badge variant="default" size="sm">
                   {session.raidCount} raids
@@ -51,26 +51,26 @@ export function Sessions({ onRaidClick }: SessionsProps) {
               </div>
 
               <div className="mb-3">
-                <p className={`text-2xl font-bold ${session.totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <DisplayValue tone={session.totalProfit >= 0 ? 'positive' : 'negative'}>
                   {session.totalProfit >= 0 ? '+' : ''}${formatCurrency(session.totalProfit)}
-                </p>
-                <div className="flex items-center gap-3 mt-1 text-sm text-abi-text-muted">
-                  <span className="flex items-center gap-1">
+                </DisplayValue>
+                <div className="flex items-center gap-3 mt-[var(--space-value-meta)]">
+                  <Caption className="flex items-center gap-1">
                     <Target size={12} /> {formatPercentage(session.extractionRate)}
-                  </span>
-                  <span className="flex items-center gap-1">
+                  </Caption>
+                  <Caption className="flex items-center gap-1">
                     <TrendingUp size={12} />
                     {session.totalInvestment > 0
                       ? formatPercentage((session.totalProfit / session.totalInvestment) * 100)
                       : '0%'
                     }
-                  </span>
+                  </Caption>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-abi-text-dim">
-                <span>Investment: ${formatCurrency(session.totalInvestment)}</span>
-                <ChevronRight size={16} className="text-abi-text-muted" />
+              <div className="flex items-center justify-between">
+                <Caption tone="muted">Investment: ${formatCurrency(session.totalInvestment)}</Caption>
+                <ChevronRight size={16} className="text-secondary" />
               </div>
             </Card>
           ))}
@@ -95,37 +95,37 @@ export function Sessions({ onRaidClick }: SessionsProps) {
             {/* Session Info */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-abi-text-muted text-sm">
+                <Caption>
                   {formatDateTime(selectedSession.startTime)}
-                </p>
-                <p className="text-xs text-abi-text-dim mt-1">
+                </Caption>
+                <Caption tone="muted" className="block mt-[var(--space-value-meta)]">
                   Duration: {Math.round((selectedSession.endTime - selectedSession.startTime) / 60000)} minutes
-                </p>
+                </Caption>
               </div>
               <div className="text-right">
-                <p className={`text-2xl font-bold ${selectedSession.totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <DisplayValue tone={selectedSession.totalProfit >= 0 ? 'positive' : 'negative'}>
                   {selectedSession.totalProfit >= 0 ? '+' : ''}${formatCurrency(selectedSession.totalProfit)}
-                </p>
+                </DisplayValue>
               </div>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-4 gap-4 p-3 bg-abi-bg rounded-lg">
               <div className="text-center">
-                <p className="text-lg font-bold text-abi-text">{selectedSession.raidCount}</p>
-                <p className="text-xs text-abi-text-muted">Raids</p>
+                <DataValue>{selectedSession.raidCount}</DataValue>
+                <MetaLabel className="block mt-[var(--space-value-meta)]">Raids</MetaLabel>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-green-400">{formatPercentage(selectedSession.extractionRate)}</p>
-                <p className="text-xs text-abi-text-muted">Extract</p>
+                <DataValue tone="positive">{formatPercentage(selectedSession.extractionRate)}</DataValue>
+                <MetaLabel className="block mt-[var(--space-value-meta)]">Extract</MetaLabel>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-abi-text">${formatCurrency(selectedSession.totalInvestment)}</p>
-                <p className="text-xs text-abi-text-muted">Invested</p>
+                <DataValue>${formatCurrency(selectedSession.totalInvestment)}</DataValue>
+                <MetaLabel className="block mt-[var(--space-value-meta)]">Invested</MetaLabel>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-green-400">${formatCurrency(selectedSession.totalLoot)}</p>
-                <p className="text-xs text-abi-text-muted">Looted</p>
+                <DataValue tone="positive">${formatCurrency(selectedSession.totalLoot)}</DataValue>
+                <MetaLabel className="block mt-[var(--space-value-meta)]">Looted</MetaLabel>
               </div>
             </div>
 
@@ -133,7 +133,7 @@ export function Sessions({ onRaidClick }: SessionsProps) {
 
             {/* Raids List */}
             <div>
-              <h4 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-3">
+              <h4 className="type-label text-secondary mb-[var(--space-section)]">
                 Raids in Session
               </h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -147,19 +147,14 @@ export function Sessions({ onRaidClick }: SessionsProps) {
                     className="flex items-center justify-between p-2 rounded-lg bg-abi-bg cursor-pointer hover:bg-abi-bg-hover transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <Badge
-                        variant={raid.status === 'EXTRACTED' ? 'success' : raid.status === 'DIED' ? 'danger' : 'warning'}
-                        size="sm"
-                      >
-                        {STATUS_ICONS[raid.status]}
-                      </Badge>
-                      <span className="text-sm text-abi-text">{raid.map}</span>
+                      <StatusBadge status={raid.status} icon={STATUS_ICONS[raid.status]} />
+                      <MapName>{raid.map}</MapName>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-abi-text-muted">{raid.duration}m</span>
-                      <span className={`text-sm ${raid.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <Caption>{raid.duration}m</Caption>
+                      <DataValue tone={raid.netProfit >= 0 ? 'positive' : 'negative'}>
                         ${formatCurrency(raid.netProfit)}
-                      </span>
+                      </DataValue>
                     </div>
                   </div>
                 ))}

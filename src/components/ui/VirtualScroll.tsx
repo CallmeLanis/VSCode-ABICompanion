@@ -87,13 +87,13 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="flex flex-col items-center justify-center py-14 text-center border border-dashed border-abi-border rounded-xl bg-abi-bg/40 px-6">
       {icon && (
-        <div className="text-abi-text-dim mb-4">{icon}</div>
+        <div className="text-abi-orange/70 mb-4 opacity-80">{icon}</div>
       )}
-      <h3 className="text-lg font-semibold text-abi-text mb-2">{title}</h3>
+      <h3 className="font-orbitron text-base font-semibold text-abi-text mb-2">{title}</h3>
       {description && (
-        <p className="text-abi-text-muted mb-4 max-w-md">{description}</p>
+        <p className="text-abi-text-muted mb-5 max-w-md text-sm leading-relaxed">{description}</p>
       )}
       {action}
     </div>
@@ -134,7 +134,7 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange, className = '' }: TabsProps) {
   return (
-    <div className={`flex gap-1 bg-abi-bg-elevated p-1 rounded-lg ${className}`}>
+    <div className={`flex gap-1 bg-abi-bg border border-abi-border p-1 rounded-md ${className}`}>
       {tabs.map((tab) => {
         const isActive = tab.id === activeTab;
         return (
@@ -142,11 +142,11 @@ export function Tabs({ tabs, activeTab, onChange, className = '' }: TabsProps) {
             key={tab.id}
             onClick={() => onChange(tab.id)}
             className={`
-              flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium
-              transition-all duration-200
+              flex items-center gap-2 px-3 py-1.5 rounded-sm font-mono text-[10px] uppercase tracking-[0.1em] font-medium
+              transition-colors duration-150
               ${isActive
-                ? 'bg-abi-orange text-white'
-                : 'text-abi-text-muted hover:text-abi-text hover:bg-abi-bg-hover'
+                ? 'bg-abi-orange/15 text-abi-orange border border-abi-orange/35'
+                : 'text-abi-text-muted border border-transparent hover:text-abi-text hover:bg-abi-bg-hover'
               }
             `.replace(/\s+/g, ' ').trim()}
           >

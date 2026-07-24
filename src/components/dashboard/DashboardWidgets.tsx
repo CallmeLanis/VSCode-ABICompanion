@@ -34,7 +34,7 @@ interface StatCardProps {
 }
 
 export function StatCard({ label, value, subValue, accent, trend, icon }: StatCardProps) {
-  const trendColor = trend === 'up' ? 'text-green-400' : trend === 'down' ? 'text-red-500' : 'text-abi-text-muted';
+  const trendColor = trend === 'up' ? 'text-abi-success' : trend === 'down' ? 'text-abi-danger' : 'text-abi-text-muted';
   const accentStyle = accent ? accent : 'text-abi-orange';
 
   return (
@@ -75,7 +75,7 @@ export function SitrepCard({ status, timestamp, viewMode, onViewChange }: Sitrep
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="hud-chip rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-abi-orange">View: {viewMode}</div>
           <select
-            className="bg-[#111118] border border-abi-border text-sm text-abi-text px-3 py-2 rounded-lg focus:outline-none focus:border-abi-orange"
+            className="bg-abi-bg-elevated border border-abi-border text-sm text-abi-text px-3 py-2 rounded-lg focus:outline-none focus:border-abi-orange"
             value={viewMode}
             onChange={(e) => onViewChange(e.target.value)}
           >
@@ -237,7 +237,7 @@ export function RecentRaidCard({ raids, onRaidClick }: RecentRaidCardProps) {
           <button
             key={raid.id}
             onClick={() => onRaidClick(raid.id)}
-            className="w-full text-left rounded-2xl border border-abi-border bg-[#10101a] px-4 py-3 transition hover:border-abi-orange/40 hover:bg-[#14141f]"
+            className="w-full text-left rounded-2xl border border-abi-border bg-abi-bg-elevated px-4 py-3 transition hover:border-abi-orange/40 hover:bg-abi-bg-hover"
           >
             <div className="flex items-center justify-between gap-3">
               <div>

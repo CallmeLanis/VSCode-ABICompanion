@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Navigation, type Page } from './components/Navigation';
-import { Dashboard } from './pages/Dashboard';
 import { RaidsPage } from './pages/RaidsPage';
 import { RaidDetailPopup } from './pages/RaidDetailPopup';
 import { Sessions } from './pages/Sessions';
@@ -21,7 +20,6 @@ export default function App() {
   const [showRaidPopup, setShowRaidPopup] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Initialize mock data if storage is empty (only on first visit)
   useEffect(() => {
     if (!isDataLoaded) {
       const hasVisited = localStorage.getItem('abi_has_visited');
@@ -38,25 +36,23 @@ export default function App() {
     }
   }, [isDataLoaded]);
 
-  // Handle raid click
   const handleRaidClick = (raidId: string) => {
     setSelectedRaidId(raidId);
     setShowRaidPopup(true);
   };
 
-  // Handle session click
-  const handleSessionClick = (_sessionId: string) => {
-    // Navigate to sessions
-    setCurrentPage('sessions');
+  const handleNavigate = (page: Page) => {
+    // Dashboard duplicated Economy — fold into Economy
+    setCurrentPage(page === 'dashboard' ? 'economy' : page);
   };
 
-  // Render current page
   const renderPage = () => {
     switch (currentPage) {
       case 'overview':
         return <Overview onRaidClick={handleRaidClick} />;
       case 'dashboard':
-        return <Dashboard onNavigate={setCurrentPage} />;
+      case 'economy':
+        return <Economy />;
       case 'raids':
         return <RaidsPage onRaidClick={handleRaidClick} />;
       case 'sessions':
@@ -65,8 +61,6 @@ export default function App() {
         return <Highlights onRaidClick={handleRaidClick} />;
       case 'lootdb':
         return <LootDB />;
-      case 'economy':
-        return <Economy />;
       case 'gear':
         return <Gear />;
       case 'performance':
@@ -82,21 +76,22 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Navigation */}
-      <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
+      <a
+        href="#main-content"
+        className="sr-only type-label focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-abi-orange focus:text-abi-bg focus:px-3 focus:py-2"
+      >
+        Skip to content
+      </a>
+      <Navigation currentPage={currentPage} onNavigate={handleNavigate} />
 
-      {/* Main Content */}
-      <main className="main-content">
-        {/* Mobile header spacer */}
+      <main id="main-content" className="main-content">
         <div className="lg:hidden h-16" />
 
-        {/* Page Content */}
-        <div className="page-content">
+        <div className="page-content page-enter" key={currentPage}>
           {renderPage()}
         </div>
       </main>
 
-      {/* Raid Detail Popup */}
       <RaidDetailPopup
         raidId={selectedRaidId}
         isOpen={showRaidPopup}

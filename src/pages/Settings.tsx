@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, NumberInput, ConfirmModal } from '../components/ui';
+import { Card, Button, NumberInput, ConfirmModal, PageHeader } from '../components/ui';
 import { MergeDataBlock } from '../components/MergeDataBlock';
 import { getStoredSettings, saveSettings, clearAllStorage } from '../utils/storage';
 import { formatPercentage } from '../utils/economy';
-import { Settings, Trash2, Info, Download } from 'lucide-react';
+import { Trash2, Info, Download } from 'lucide-react';
 import type { AppSettings } from '../types';
 
 export function SettingsPage() {
@@ -30,21 +30,16 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-abi-text flex items-center gap-2">
-          <Settings className="text-abi-orange" size={28} />
-          Settings
-        </h1>
-        <p className="text-abi-text-muted text-sm mt-1">
-          Configure your experience
-        </p>
-      </div>
+    <div className="space-y-6 max-w-2xl page-enter">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Settings"
+        meta="Local preferences and data controls"
+      />
 
       {/* Economy Settings */}
       <Card className="p-4">
-        <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
+        <h3 className="font-mono text-[10px] font-semibold text-abi-text-muted uppercase tracking-[0.14em] mb-4">
           Economy
         </h3>
         <div className="space-y-4">

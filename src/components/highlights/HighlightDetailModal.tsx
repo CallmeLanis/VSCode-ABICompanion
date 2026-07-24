@@ -11,7 +11,7 @@ export default function HighlightDetailModal({ raidId, onClose }: { raidId: stri
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-[900px] max-w-full bg-[#0b0b0f] border border-abi-border rounded-xl p-6 shadow-lg hud-modal">
+      <div className="relative w-[900px] max-w-full bg-abi-bg border border-abi-border rounded-xl p-6 shadow-lg hud-modal">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="font-orbitron text-2xl text-abi-text">{raid.map} — {formatDateTime(raid.timestamp || Date.now())}</h3>

@@ -4,3 +4,7 @@ export { Input, Select, NumberInput, Checkbox } from './Input';
 export { Modal, ConfirmModal } from './Modal';
 export { Badge, Tag, ProgressBar, Divider } from './Badge';
 export { VirtualScroll, useWindowSize, EmptyState, Spinner, Tabs } from './VirtualScroll';
+export { PageHeader } from './PageHeader';
+export { DisplayValue, DataValue, MapName, MetaLabel, BodyText, Caption } from './Typography';
+export type { Tone } from './Typography';
+export { StatusBadge } from './StatusBadge';

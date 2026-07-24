@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useRaids } from '../hooks/useStorageQuery';
 import { formatCurrency, formatPercentage, formatNumber } from '../utils/mockData';
+import { PageHeader } from '../components/ui/PageHeader';
 
 export function Performance() {
   const raids = useRaids();
@@ -133,31 +134,24 @@ export function Performance() {
   }, [roiAnalytics]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="hud-label text-xs tracking-[0.3em] mb-2">TACTICAL PERFORMANCE</p>
-          <h1 className="text-4xl lg:text-5xl font-black text-abi-text">Performance Analytics</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hud-chip rounded-full px-4 py-2 tracking-[0.24em] text-xs uppercase text-abi-orange border border-abi-orange/25">
-            All Modes
-          </span>
-        </div>
-      </div>
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        eyebrow="Tactical performance"
+        title="Performance analytics"
+        actions={<span className="hud-chip text-abi-orange">All maps</span>}
+      />
 
       {/* Mode Efficiency */}
-      <div className="hud-card rounded-xl p-5 relative">
+      <div className="hud-card p-5 relative">
         <div className="corner-accent top-left" />
         <div className="corner-accent top-right" />
         <div className="corner-accent bottom-left" />
         <div className="corner-accent bottom-right" />
 
-        <h3 className="hud-heading text-sm mb-4">MODE EFFICIENCY</h3>
+        <h3 className="hud-heading mb-4">Mode efficiency</h3>
 
-        <div className="overflow-hidden rounded-2xl border border-abi-border">
-          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1fr_1fr_1fr_1.2fr] gap-3 px-4 py-3 text-xs uppercase tracking-[0.24em] text-abi-text-muted bg-[#10101a]">
+        <div className="overflow-hidden rounded-xl border border-abi-border">
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1fr_1fr_1fr_1.2fr] gap-3 px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-abi-text-muted bg-abi-bg font-mono">
             <span>Mode</span>
             <span>Raids</span>
             <span>Extract %</span>
@@ -196,7 +190,7 @@ export function Performance() {
         <h3 className="hud-heading text-sm mb-4">MAP PROFITABILITY</h3>
 
         <div className="overflow-hidden rounded-2xl border border-abi-border">
-          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1fr_1.2fr] gap-3 px-4 py-3 text-xs uppercase tracking-[0.24em] text-abi-text-muted bg-[#10101a]">
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1fr_1.2fr] gap-3 px-4 py-3 type-label text-secondary bg-abi-bg-elevated">
             <span>Map</span>
             <span>Raids</span>
             <span>Extract %</span>
@@ -238,7 +232,7 @@ export function Performance() {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-abi-border">
-          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1.2fr] gap-3 px-4 py-3 text-xs uppercase tracking-[0.24em] text-abi-text-muted bg-[#10101a]">
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.2fr_1.2fr] gap-3 px-4 py-3 type-label text-secondary bg-abi-bg-elevated">
             <span>Map</span>
             <span>Total Raids</span>
             <span>Extraction %</span>
@@ -284,8 +278,8 @@ export function Performance() {
             <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-[320px]">
               <defs>
                 <linearGradient id="perfGradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#00ff66" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#00ff66" stopOpacity="0" />
+                  <stop offset="0%" stopColor="var(--text-positive)" stopOpacity="0.15" />
+                  <stop offset="100%" stopColor="var(--text-positive)" stopOpacity="0" />
                 </linearGradient>
               </defs>
 
@@ -313,7 +307,7 @@ export function Performance() {
               {/* Line path */}
               {performancePath && (
                 <>
-                  <path d={performancePath} fill="none" stroke="#00ff66" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={performancePath} fill="none" stroke="var(--text-positive)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   <path d={`${performancePath} L ${chartWidth} ${chartHeight - padding} L 0 ${chartHeight - padding} Z`} fill="url(#perfGradient)" opacity="0.6" />
                 </>
               )}
@@ -327,7 +321,7 @@ export function Performance() {
                 return values.map((value, i) => {
                   const y = padding + chartDrawHeight * (1 - (value - min) / range);
                   return (
-                    <text key={i} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="#888888">
+                    <text key={i} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="var(--text-muted)">
                       {(value / 1000000).toFixed(1)}M
                     </text>
                   );
@@ -355,8 +349,8 @@ export function Performance() {
             <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-[320px]">
               <defs>
                 <linearGradient id="roiGradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#ff5500" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#ff5500" stopOpacity="0" />
+                  <stop offset="0%" stopColor="var(--text-accent)" stopOpacity="0.15" />
+                  <stop offset="100%" stopColor="var(--text-accent)" stopOpacity="0" />
                 </linearGradient>
               </defs>
 
@@ -384,7 +378,7 @@ export function Performance() {
               {/* Line path */}
               {roiPath && (
                 <>
-                  <path d={roiPath} fill="none" stroke="#ff5500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={roiPath} fill="none" stroke="var(--text-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   <path d={`${roiPath} L ${chartWidth} ${chartHeight - padding} L 0 ${chartHeight - padding} Z`} fill="url(#roiGradient)" opacity="0.6" />
                 </>
               )}
@@ -398,7 +392,7 @@ export function Performance() {
                 return values.map((value, i) => {
                   const y = padding + chartDrawHeight * (1 - (value - min) / range);
                   return (
-                    <text key={i} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="#888888">
+                    <text key={i} x="-4" y={y + 4} textAnchor="end" fontSize="11" fill="var(--text-muted)">
                       {value.toFixed(0)}%
                     </text>
                   );
