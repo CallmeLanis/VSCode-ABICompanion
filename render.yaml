@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: abi-companion-mcp
+    runtime: node
+    rootDir: mcp-server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production

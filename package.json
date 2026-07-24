@@ -15,7 +15,10 @@
     "deploy": "gh-pages -d dist",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "mcp:install": "npm install --prefix mcp-server",
+    "mcp:stdio": "node mcp-server/src/stdio.js",
+    "mcp:http": "node mcp-server/src/http.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

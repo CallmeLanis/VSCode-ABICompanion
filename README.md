@@ -17,6 +17,7 @@ GitHub repo browser links are **not readable** by AI crawlers. Use these **raw t
 | Roadmap & questions | [docs/ROADMAP.md](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/ROADMAP.md) |
 | Source file index | [docs/FILE_INDEX.md](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/FILE_INDEX.md) |
 | LLM index | [llms.txt](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/llms.txt) |
+| **MCP setup (ChatGPT)** | [docs/MCP_SETUP.md](https://raw.githubusercontent.com/CallmeLanis/VSCode-ABICompanion/main/docs/MCP_SETUP.md) |
 
 **Copy-paste prompt for ChatGPT** (enable Browse/Web):
 

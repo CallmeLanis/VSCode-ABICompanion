@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "abi-companion": {
+      "command": "node",
+      "args": ["mcp-server/src/stdio.js"],
+      "env": {}
+    }
+  }
+}
