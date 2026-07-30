@@ -12,15 +12,16 @@ interface StatusBadgeProps {
 const variantByStatus = {
   EXTRACTED: 'success',
   DIED: 'danger',
-  FLED: 'warning',
   UNKNOWN: 'warning',
 } as const;
 
 export function StatusBadge({ status, icon, className = '' }: StatusBadgeProps) {
+  const displayStatus = status === 'FLED' ? 'DIED' : status;
+
   return (
-    <Badge variant={variantByStatus[status]} className={className}>
-      {icon}
-      {status}
+    <Badge variant={variantByStatus[displayStatus]} className={className}>
+      {status === 'FLED' ? '✗' : icon}
+      {displayStatus}
     </Badge>
   );
 }

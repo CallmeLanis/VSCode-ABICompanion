@@ -1,135 +1,323 @@
-import type { Raid, Session, Highlight } from '../types';
-import { generateId } from './storage';
+import type { Raid, Session, Highlight, RaidMode, RaidStatus } from '../types';
+import { generateId, getSessionId, saveRaids, saveSessions, saveHighlights } from './storage';
 
-// Generate mock raids matching the reference images
-export function generateMockRaids(): Raid[] {
-  const raids: Raid[] = [];
-  const maps = ['TV Station', 'Farm', 'Valley', 'Lockdown', 'Forbidden'];
-  const modes: Array<'Normal' | 'Lockdown' | 'Forbidden'> = ['Normal', 'Lockdown', 'Forbidden'];
-  const statuses: Array<'EXTRACTED' | 'DIED'> = ['EXTRACTED', 'DIED'];
+const DEMO_RAID_COUNT = 48;
+const SESSION_DURATION_MINUTES = 60;
 
-  const baseTime = Date.now() - 143 * 24 * 60 * 60 * 1000; // 143 days ago
+const DEMO_MAPS = ['TV Station', 'Farm', 'Valley', 'Northridge', 'Armory'] as const;
+const DEMO_MODES: RaidMode[] = ['Normal', 'Lockdown', 'Forbidden'];
+const DEMO_STATUSES: RaidStatus[] = ['EXTRACTED', 'DIED'];
 
-  for (let i = 0; i < 143; i++) {
-    const timestamp = baseTime + i * 24 * 60 * 60 * 1000 + Math.random() * 12 * 60 * 60 * 1000;
-    const map = maps[Math.floor(Math.random() * maps.length)];
-    const mode = modes[Math.floor(Math.random() * modes.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
+const LOOT_NAMES = [
+  'Graphics Card',
+  'Motor',
+  'Bolts',
+  'Tetriz',
+  'Rolex',
+  'LEDX',
+  'Golden Rooster',
+  'Fuel Conditioner',
+];
 
-    const gearValue = Math.floor(Math.random() * 50000000) + 1000000;
-    const ammoCost = Math.floor(Math.random() * 5000000) + 500000;
-    const consumableCost = Math.floor(Math.random() * 2000000) + 100000;
-    const investment = gearValue + ammoCost + consumableCost;
+type DemoScenario = {
+  map: (typeof DEMO_MAPS)[number];
+  mode: RaidMode;
+  status: RaidStatus;
+  gearValue: number;
+  ammoCost: number;
+  consumableCost: number;
+  lootValue: number;
+  kills: number;
+  durationMin: number;
+  lootNames: string[];
+  rescuePercentage?: number;
+  highlight?: boolean;
+  highlightReason?: string;
+};
 
-    const lootValue = status === 'EXTRACTED'
-      ? Math.floor(Math.random() * 10000000) + investment
-      : Math.floor(Math.random() * 500000);
+const SCENARIOS: DemoScenario[] = [
+  {
+    map: 'TV Station',
+    mode: 'Forbidden',
+    status: 'EXTRACTED',
+    gearValue: 720_000,
+    ammoCost: 48_000,
+    consumableCost: 22_000,
+    lootValue: 1_420_000,
+    kills: 4,
+    durationMin: 28,
+    lootNames: ['Graphics Card', 'Motor'],
+    highlight: true,
+    highlightReason: 'Strong Forbidden extract on TV Station',
+  },
+  {
+    map: 'Farm',
+    mode: 'Lockdown',
+    status: 'EXTRACTED',
+    gearValue: 215_000,
+    ammoCost: 12_000,
+    consumableCost: 8_500,
+    lootValue: 410_000,
+    kills: 2,
+    durationMin: 19,
+    lootNames: ['Bolts', 'Fuel Conditioner'],
+  },
+  {
+    map: 'Valley',
+    mode: 'Normal',
+    status: 'DIED',
+    gearValue: 580_000,
+    ammoCost: 35_000,
+    consumableCost: 14_000,
+    lootValue: 95_000,
+    kills: 1,
+    durationMin: 11,
+    lootNames: ['Tetriz'],
+    rescuePercentage: 72,
+  },
+  {
+    map: 'Northridge',
+    mode: 'Lockdown',
+    status: 'EXTRACTED',
+    gearValue: 890_000,
+    ammoCost: 62_000,
+    consumableCost: 18_000,
+    lootValue: 1_960_000,
+    kills: 6,
+    durationMin: 34,
+    lootNames: ['Rolex', 'LEDX'],
+    highlight: true,
+    highlightReason: 'High-value Northridge Lockdown run',
+  },
+  {
+    map: 'Armory',
+    mode: 'Forbidden',
+    status: 'DIED',
+    gearValue: 640_000,
+    ammoCost: 195_000,
+    consumableCost: 24_000,
+    lootValue: 118_000,
+    kills: 0,
+    durationMin: 8,
+    lootNames: [],
+    rescuePercentage: 0,
+  },
+  {
+    map: 'TV Station',
+    mode: 'Lockdown',
+    status: 'DIED',
+    gearValue: 310_000,
+    ammoCost: 18_000,
+    consumableCost: 6_000,
+    lootValue: 42_000,
+    kills: 0,
+    durationMin: 6,
+    lootNames: [],
+  },
+];
 
-    const netProfit = lootValue - investment;
-    const roi = investment > 0 ? (netProfit / investment) * 100 : 0;
-
-    const ammo = [
-      {
-        id: generateId(),
-        caliber: '5.56x45mm',
-        tier: 'T5',
-        quantity: Math.floor(Math.random() * 500) + 50,
-        costPerRound: 500,
-        totalCost: Math.floor(Math.random() * 250000) + 25000,
-      },
-    ];
-
-    const consumables = [
-      {
-        id: generateId(),
-        name: 'IFAK',
-        quantity: Math.floor(Math.random() * 5) + 1,
-        costPerUnit: 3500,
-        totalCost: Math.floor(Math.random() * 17500) + 3500,
-        type: 'treatment' as const,
-      },
-    ];
-
-    const gearRescue = status === 'DIED' ? {
-      gearValue,
-      rescuePercentage: Math.random() * 100,
-      rescuedValue: Math.floor(Math.random() * gearValue),
-      gearLoss: gearValue - Math.floor(Math.random() * gearValue),
-    } : undefined;
-
-    raids.push({
-      id: `raid-${i + 1}`,
-      timestamp,
-      map,
-      mode,
-      status,
-      duration: Math.floor(Math.random() * 3600) + 600,
-      ammo,
-      consumables,
-      gearValue,
-      gearRescue,
-      loot: [],
-      lootValue,
-      kills: Math.floor(Math.random() * 10),
-      deaths: status === 'DIED' ? 1 : 0,
-      investment,
-      netProfit,
-      roi,
-      isHighlight: i === 142 || i === 100 || i === 50,
-      highlightReason: i === 142 ? 'Best raid today' : i === 100 ? 'High profit' : 'Notable',
-      highlightCategory: 'profit',
-      sessionId: `session-${Math.floor(i / 5)}`,
-    });
-  }
-
-  return raids;
+function buildAmmo(totalCost: number) {
+  const quantity = Math.max(10, Math.round(totalCost / 800));
+  const costPerRound = Math.round(totalCost / quantity);
+  return [
+    {
+      id: generateId(),
+      caliber: '5.56x45',
+      tier: 'T4',
+      quantity,
+      costPerRound,
+      totalCost,
+    },
+  ];
 }
 
-export function generateMockSessions(): Session[] {
-  const sessions: Session[] = [];
-  const baseTime = Date.now() - 30 * 24 * 60 * 60 * 1000;
+function buildConsumables(totalCost: number) {
+  const qty = 2;
+  const costPerUnit = Math.round(totalCost / qty);
+  return [
+    {
+      id: generateId(),
+      name: 'IFAK',
+      quantity: qty,
+      costPerUnit,
+      totalCost,
+      type: 'treatment' as const,
+    },
+  ];
+}
 
-  for (let i = 0; i < 29; i++) {
-    const startTime = baseTime + i * 24 * 60 * 60 * 1000;
-    const endTime = startTime + Math.random() * 4 * 60 * 60 * 1000;
-    const raidCount = Math.floor(Math.random() * 10) + 1;
-    const totalProfit = Math.floor(Math.random() * 50000000) - 10000000;
-    const totalInvestment = Math.floor(Math.random() * 30000000) + 5000000;
-    const totalLoot = totalProfit + totalInvestment;
-    const extractionRate = Math.random() * 100;
+function buildLoot(names: string[], lootValue: number) {
+  if (names.length === 0 || lootValue <= 0) return [];
+  const share = Math.floor(lootValue / names.length);
+  return names.map((name, index) => ({
+    id: generateId(),
+    name,
+    baseValue: index === names.length - 1 ? lootValue - share * (names.length - 1) : share,
+    quantity: 1,
+    rarity: name === 'LEDX' || name === 'Rolex' ? ('rare' as const) : ('uncommon' as const),
+  }));
+}
 
-    sessions.push({
-      id: `session-${i}`,
+function buildRaidFromScenario(scenario: DemoScenario, index: number, timestamp: number): Raid {
+  let gearRescue: Raid['gearRescue'];
+  let realizedGearLoss = 0;
+
+  if (scenario.status === 'DIED') {
+    const rescuePercentage = scenario.rescuePercentage ?? 0;
+    const rescuedValue = Math.floor(scenario.gearValue * (rescuePercentage / 100));
+    const gearLoss = scenario.gearValue - rescuedValue;
+    realizedGearLoss = gearLoss;
+    gearRescue = {
+      gearValue: scenario.gearValue,
+      rescuePercentage,
+      rescuedValue,
+      gearLoss,
+    };
+  }
+
+  const adjustedInvestment = realizedGearLoss + scenario.ammoCost + scenario.consumableCost;
+  const adjustedNetProfit = scenario.lootValue - adjustedInvestment;
+  const adjustedRoi =
+    adjustedInvestment > 0 ? (adjustedNetProfit / adjustedInvestment) * 100 : 0;
+
+  return {
+    id: `demo-raid-${String(index + 1).padStart(3, '0')}`,
+    timestamp,
+    map: scenario.map,
+    mode: scenario.mode,
+    status: scenario.status,
+    duration: scenario.durationMin,
+    ammo: buildAmmo(scenario.ammoCost),
+    consumables: buildConsumables(scenario.consumableCost),
+    gearValue: scenario.gearValue,
+    gearRescue,
+    loot: buildLoot(scenario.lootNames, scenario.lootValue),
+    lootValue: scenario.lootValue,
+    kills: scenario.kills,
+    deaths: scenario.status === 'DIED' ? 1 : 0,
+    investment: adjustedInvestment,
+    netProfit: adjustedNetProfit,
+    roi: adjustedRoi,
+    isHighlight: scenario.highlight === true,
+    highlightReason: scenario.highlightReason,
+    highlightCategory: scenario.highlight ? 'profit' : undefined,
+    sessionId: getSessionId(timestamp, SESSION_DURATION_MINUTES),
+  };
+}
+
+function buildRandomScenario(index: number): DemoScenario {
+  const map = DEMO_MAPS[index % DEMO_MAPS.length];
+  const mode = DEMO_MODES[index % DEMO_MODES.length];
+  const status = DEMO_STATUSES[index % DEMO_STATUSES.length];
+  const gearValue = 180_000 + (index % 7) * 95_000;
+  const ammoCost = 8_000 + (index % 5) * 11_000;
+  const consumableCost = 4_000 + (index % 4) * 3_500;
+  const investment = gearValue + ammoCost + consumableCost;
+  const lootValue =
+    status === 'EXTRACTED'
+      ? investment + 50_000 + (index % 9) * 75_000
+      : Math.floor(investment * (0.05 + (index % 3) * 0.04));
+
+  return {
+    map,
+    mode,
+    status,
+    gearValue,
+    ammoCost,
+    consumableCost,
+    lootValue,
+    kills: status === 'EXTRACTED' ? (index % 6) + 1 : index % 3,
+    durationMin: 8 + (index % 25),
+    lootNames: status === 'EXTRACTED' ? [LOOT_NAMES[index % LOOT_NAMES.length]] : [],
+    rescuePercentage: status === 'DIED' ? (index % 4) * 25 : undefined,
+  };
+}
+
+/** Tactical demo raids for Raids page testing: filters, sort, and summary stats. */
+export function generateMockRaids(count = DEMO_RAID_COUNT): Raid[] {
+  const raids: Raid[] = [];
+  const now = Date.now();
+
+  for (let i = 0; i < count; i++) {
+    const daysAgo = Math.floor(i / 3);
+    const hourOffset = (i % 3) * 4;
+    const timestamp = now - daysAgo * 24 * 60 * 60 * 1000 - hourOffset * 60 * 60 * 1000;
+    const scenario = i < SCENARIOS.length ? SCENARIOS[i] : buildRandomScenario(i);
+    raids.push(buildRaidFromScenario(scenario, i, timestamp));
+  }
+
+  return raids.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export function generateMockSessions(raids: Raid[]): Session[] {
+  const bySession = new Map<string, Raid[]>();
+
+  for (const raid of raids) {
+    const group = bySession.get(raid.sessionId) ?? [];
+    group.push(raid);
+    bySession.set(raid.sessionId, group);
+  }
+
+  return Array.from(bySession.entries()).map(([id, sessionRaids]) => {
+    const sorted = [...sessionRaids].sort((a, b) => a.timestamp - b.timestamp);
+    const startTime = sorted[0].timestamp;
+    const endTime = sorted[sorted.length - 1].timestamp + sorted[sorted.length - 1].duration * 60_000;
+    const totalProfit = sorted.reduce((sum, raid) => sum + raid.netProfit, 0);
+    const totalInvestment = sorted.reduce((sum, raid) => sum + raid.investment, 0);
+    const totalLoot = sorted.reduce((sum, raid) => sum + raid.lootValue, 0);
+    const extracted = sorted.filter((raid) => raid.status === 'EXTRACTED').length;
+
+    return {
+      id,
       startTime,
       endTime,
-      raidCount,
+      raidCount: sorted.length,
       totalProfit,
       totalInvestment,
       totalLoot,
-      extractionRate,
-    });
-  }
-
-  return sessions;
+      extractionRate: sorted.length > 0 ? (extracted / sorted.length) * 100 : 0,
+    };
+  });
 }
 
-export function generateMockHighlights(): Highlight[] {
-  return [
-    {
-      raidId: 'raid-143',
-      timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000,
-      category: 'profit',
-      reason: 'Best raid today',
-      isFavorite: true,
-    },
-    {
-      raidId: 'raid-100',
-      timestamp: Date.now() - 5 * 24 * 60 * 60 * 1000,
-      category: 'profit',
-      reason: 'High profit',
-      isFavorite: false,
-    },
-  ];
+export function generateMockHighlights(raids: Raid[]): Highlight[] {
+  const highlighted = raids.filter((raid) => raid.isHighlight);
+  const fallback = [...raids]
+    .sort((a, b) => b.netProfit - a.netProfit)
+    .slice(0, 3);
+
+  const source = highlighted.length > 0 ? highlighted : fallback;
+
+  return source.map((raid, index) => ({
+    raidId: raid.id,
+    timestamp: raid.timestamp,
+    category: raid.highlightCategory ?? (raid.kills >= 5 ? 'kills' : 'profit'),
+    reason: raid.highlightReason ?? (index === 0 ? 'Top profit operation' : 'Notable field run'),
+    isFavorite: index === 0,
+  }));
+}
+
+export interface DemoDataSummary {
+  raids: number;
+  sessions: number;
+  highlights: number;
+}
+
+/** Load demo raids + derived sessions/highlights into localStorage. */
+export function loadDemoData(count = DEMO_RAID_COUNT): DemoDataSummary {
+  const raids = generateMockRaids(count);
+  const sessions = generateMockSessions(raids);
+  const highlights = generateMockHighlights(raids);
+
+  saveRaids(raids);
+  saveSessions(sessions);
+  saveHighlights(highlights);
+
+  return {
+    raids: raids.length,
+    sessions: sessions.length,
+    highlights: highlights.length,
+  };
 }
 
 // Format utilities

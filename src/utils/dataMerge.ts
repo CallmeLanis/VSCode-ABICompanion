@@ -102,7 +102,7 @@ function mapExternalRaidToInternal(raid: unknown): Raid | null {
     const statusMap: Record<string, RaidStatus> = {
       'extracted': 'EXTRACTED',
       'died': 'DIED',
-      'fled': 'FLED',
+      'fled': 'DIED',
     };
     const status = statusMap[(r.status as string).toLowerCase()];
     if (!status) return null;
@@ -186,7 +186,7 @@ function mapExternalRaidToInternal(raid: unknown): Raid | null {
       duration: 0, // Not provided in external format
       ammo,
       consumables,
-      gearValue: actualGearLoss, // Only count actual gear loss, not full gear cost
+      gearValue: gearCost, // Preserve full loadout capital; realized loss stays in investment
       gearRescue,
       loot: [],
       lootValue,
@@ -281,6 +281,7 @@ function validateRaid(raid: unknown): { valid: Raid | null; error?: string } {
   }
 
   const r = raid as Record<string, unknown>;
+  const normalizedStatus = r.status === 'FLED' ? 'DIED' : r.status;
 
   // Required fields
   if (typeof r.timestamp !== 'number' || r.timestamp < 0) {
@@ -289,8 +290,8 @@ function validateRaid(raid: unknown): { valid: Raid | null; error?: string } {
   if (typeof r.map !== 'string' || !r.map.trim()) {
     return { valid: null, error: 'map must be a non-empty string' };
   }
-  if (!['EXTRACTED', 'DIED', 'FLED'].includes(r.status as string)) {
-    return { valid: null, error: 'status must be EXTRACTED, DIED, or FLED' };
+  if (!['EXTRACTED', 'DIED'].includes(normalizedStatus as string)) {
+    return { valid: null, error: 'status must be EXTRACTED or DIED' };
   }
   if (typeof r.duration !== 'number' || r.duration < 0) {
     return { valid: null, error: 'duration must be a non-negative number' };
@@ -330,7 +331,7 @@ function validateRaid(raid: unknown): { valid: Raid | null; error?: string } {
     timestamp: r.timestamp as number,
     map: (r.map as string).trim(),
     mode: (typeof r.mode === 'string' ? r.mode.trim() : 'Standard') as RaidMode,
-    status: r.status as RaidStatus,
+    status: normalizedStatus as RaidStatus,
     duration: r.duration as number,
     ammo,
     consumables,

@@ -141,11 +141,14 @@ export interface LootDBItem {
 }
 
 // Settings
+export type RoiMode = 'operational' | 'economic';
+
 export interface AppSettings {
   globalTaxRate: number;
   sessionDuration: number;
   highlightProfitThreshold: number;
   highlightKillThreshold: number;
+  roiMode: RoiMode;
 }
 
 // Analytics Cache
@@ -209,6 +212,244 @@ export interface ConsumableUsageData {
   totalSpend: number;
 }
 
+export interface FinancialIntelligenceData {
+  totalLoot: number;
+  totalInvestment: number;
+  netProfit: number;
+  /** Net profit as percentage of loot income. 0 when there is no loot. */
+  profitMargin: number;
+  averageNetPerRaid: number;
+  averageROI: number;
+  medianROI: number;
+  /** Percentage of raids with positive net profit. */
+  profitableShare: number;
+  bestRaid: Raid | null;
+  worstRaid: Raid | null;
+}
+
+export interface CombatIntelligenceData {
+  totalOperations: number;
+  totalKills: number;
+  averageKills: number;
+  totalDeaths: number;
+  extractionRate: number;
+  deathRate: number;
+  killsPerExtract: number;
+  averageNetPerRaid: number;
+}
+
+export interface MapPerformanceRow {
+  map: string;
+  raids: number;
+  extractionRate: number;
+  averageProfit: number;
+  averageROI: number;
+  totalNet: number;
+  bestMode: string | null;
+}
+
+export interface ModePerformanceRow {
+  mode: string;
+  raids: number;
+  extractionRate: number;
+  averageProfit: number;
+  averageROI: number;
+  averageAmmo: number;
+  averageConsumables: number;
+  totalNet: number;
+}
+
+export interface PerformanceInsight {
+  id: string;
+  type: 'strength' | 'weakness';
+  label: string;
+  evidence: string;
+}
+
+export interface RiskAnalysisData {
+  currentDryStreak: number;
+  deathRate: number;
+  recentExtractionRate: number;
+  priorExtractionRate: number;
+  extractionTrendDelta: number;
+  highestRiskMap: string | null;
+  highestRiskMapExtractRate: number;
+}
+
+export interface PerformanceIntelligenceData {
+  combat: CombatIntelligenceData;
+  maps: MapPerformanceRow[];
+  modes: ModePerformanceRow[];
+  strengths: PerformanceInsight[];
+  weaknesses: PerformanceInsight[];
+  risk: RiskAnalysisData;
+  profitTrend: number[];
+  roiTrend: number[];
+}
+
+export interface GearSummaryData {
+  totalGearValueBrought: number;
+  totalGearValueLost: number;
+  totalGearValueRescued: number;
+  recoveryRate: number;
+  bestRescuePercentage: number;
+  worstRescuePercentage: number;
+  extractedCount: number;
+  kiaCount: number;
+}
+
+export interface LoadoutCard {
+  id: string;
+  label: string;
+  usage: number;
+  averageInvestment: number;
+  averageProfit: number;
+  averageROI: number;
+  extractionRate: number;
+  totalNet: number;
+  topMap: string | null;
+  trendDelta: number;
+}
+
+export interface LoadoutUsageRow {
+  raidId: string;
+  timestamp: number;
+  map: string;
+  mode: string;
+  gearValue: number;
+  investment: number;
+  netProfit: number;
+  roi: number;
+  status: RaidStatus;
+}
+
+export interface LoadoutRoiComparison {
+  id: string;
+  label: string;
+  averageROI: number;
+  usage: number;
+}
+
+export interface GearIntelligenceData {
+  summary: GearSummaryData;
+  loadouts: LoadoutCard[];
+  roiComparison: LoadoutRoiComparison[];
+  usageHistory: LoadoutUsageRow[];
+  performanceHistory: number[];
+}
+
+export type LootSellAction = 'market' | 'vendor' | 'hold';
+
+export interface LootDBRecord extends LootDBItem {
+  foundCount: number;
+  totalEarnings: number;
+  marketNet: number;
+  bestVendorPrice: number;
+  bestVendorName: string;
+  action: LootSellAction;
+}
+
+export interface LootIntelligenceData {
+  summary: {
+    totalItems: number;
+    catalogMarketValue: number;
+    totalFoundCount: number;
+    trackedInRaids: number;
+    sellToMarket: number;
+    sellToVendor: number;
+    needsData: number;
+    byRarity: Record<string, number>;
+  };
+  records: LootDBRecord[];
+}
+
+export type CommanderPlaystyle =
+  | 'Economic Farmer'
+  | 'Aggressive Raider'
+  | 'Balanced Operator'
+  | 'Loot Hunter'
+  | 'High Risk Commander'
+  | 'Survival Specialist';
+
+export interface CommanderCareerRecord {
+  label: string;
+  value: string;
+  subValue: string;
+  raidId?: string;
+  timestamp?: number;
+}
+
+export interface CommanderAchievement {
+  id: string;
+  name: string;
+  description: string;
+  unlocked: boolean;
+  progress?: number;
+  maxProgress?: number;
+}
+
+export interface CommanderMapRow {
+  map: string;
+  raids: number;
+  extractionRate: number;
+  totalProfit: number;
+  averageROI: number;
+}
+
+export interface CommanderLoadoutRow {
+  id: string;
+  label: string;
+  raids: number;
+  extractionRate: number;
+  averageProfit: number;
+}
+
+export interface CareerTimelineEntry {
+  timestamp: number;
+  type: 'first_raid' | 'milestone_raids' | 'milestone_profit' | 'best_raid' | 'highlight';
+  label: string;
+  detail: string;
+}
+
+export interface CommanderStreaks {
+  currentExtraction: number;
+  longestExtraction: number;
+  currentProfit: number;
+  longestProfit: number;
+  currentDry: number;
+}
+
+export interface CommanderServiceRecord {
+  firstDeployment: number | null;
+  lastDeployment: number | null;
+  totalDeployments: number;
+  totalSessions: number;
+  totalHighlights: number;
+  totalKills: number;
+  totalDeaths: number;
+  lifetimeInvestment: number;
+  lifetimeLoot: number;
+  averageDuration: number;
+  extractionRate: number;
+  lifetimeProfit: number;
+  averageROI: number;
+}
+
+export interface CommanderIntelligenceData {
+  prestige: { level: number; title: string };
+  tacticalScore: number;
+  playstyle: CommanderPlaystyle | null;
+  playstyleConfidence: 'low' | 'medium' | 'high';
+  serviceRecord: CommanderServiceRecord;
+  streaks: CommanderStreaks;
+  records: CommanderCareerRecord[];
+  mapBreakdown: CommanderMapRow[];
+  loadoutBreakdown: CommanderLoadoutRow[];
+  careerTimeline: CareerTimelineEntry[];
+  achievements: CommanderAchievement[];
+  unlockedAchievementCount: number;
+}
+
 export interface SessionSummary {
   sessions: Session[];
   totalSessions: number;
@@ -224,21 +465,6 @@ export interface Vendor {
   id: string;
   name: string;
   icon?: string;
-}
-
-// Ammo Caliber
-export interface AmmoCaliber {
-  id: string;
-  name: string;
-  tiers: AmmoTier[];
-}
-
-export interface AmmoTier {
-  id: string;
-  name: string;
-  costPerRound: number;
-  penetration?: number;
-  damage?: number;
 }
 
 // Consumable Template

@@ -1,286 +1,481 @@
-import { useMemo } from 'react';
-import type { ReactNode } from 'react';
-import { Card, Badge, ProgressBar } from '../components/ui';
-import { calculateGearAnalytics } from '../utils/analytics';
-import { useDashboardAnalytics, useRaids, useStorageQuery } from '../hooks/useStorageQuery';
-import { formatCurrency, formatPercentage } from '../utils/economy';
-import { User, Trophy, Target, TrendingUp, Skull, Clock, Star, Shield, Zap } from 'lucide-react';
+import { useMemo, type ReactNode } from 'react';
+import {
+  Badge,
+  Caption,
+  DataValue,
+  EmptyState,
+  MapName,
+  MetaLabel,
+  PageHeader,
+  ProgressBar,
+  RoiViewToggle,
+  StatCard,
+} from '../components/ui';
+import {
+  calculateCommanderIntelligence,
+  calculateGearAnalytics,
+} from '../utils/analytics';
+import {
+  useHighlights,
+  useRoiRaids,
+  useAggregatedSessions,
+} from '../hooks/useStorageQuery';
+import {
+  formatCurrency,
+  formatDateTime,
+  formatDuration,
+  formatPercentage,
+} from '../utils/economy';
+import {
+  Award,
+  Clock,
+  Crosshair,
+  Flame,
+  MapPin,
+  Shield,
+  Skull,
+  Star,
+  Target,
+  TrendingUp,
+  Trophy,
+  User,
+  Wallet,
+  Zap,
+} from 'lucide-react';
+import type { CommanderAchievement } from '../types';
+import {
+  CountUpValue,
+  RevealSection,
+  StaggerContainer,
+  StaggerItem,
+  StaggerList,
+} from '../components/motion';
+import { motion } from 'motion/react';
 
-interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: ReactNode;
-  unlocked: boolean;
-  progress?: number;
-  maxProgress?: number;
-}
+const ACHIEVEMENT_ICONS: Record<string, ReactNode> = {
+  first_raid: <Skull size={20} />,
+  veteran: <Trophy size={20} />,
+  profit_king: <TrendingUp size={20} />,
+  extractor: <Target size={20} />,
+  money_maker: <Star size={20} />,
+  slayer: <Zap size={20} />,
+  rescue_expert: <Shield size={20} />,
+  marathon: <Clock size={20} />,
+};
 
 export function Commander() {
-  const analytics = useDashboardAnalytics();
-  const gearAnalytics = useStorageQuery(['raids', 'analytics'], calculateGearAnalytics);
-  const raids = useRaids();
+  const raids = useRoiRaids();
+  const sessions = useAggregatedSessions();
+  const highlights = useHighlights();
 
-  // Calculate lifetime records
-  const records = useMemo(() => {
-    if (raids.length === 0) return null;
+  const dossier = useMemo(() => {
+    const gearSummary = calculateGearAnalytics(raids);
+    return calculateCommanderIntelligence(raids, sessions, highlights, gearSummary);
+  }, [raids, sessions, highlights]);
 
-    const bestProfit = raids.reduce((best, r) => r.netProfit > best.netProfit ? r : best, raids[0]);
-    const worstProfit = raids.reduce((worst, r) => r.netProfit < worst.netProfit ? r : worst, raids[0]);
-    const mostKills = raids.reduce((best, r) => r.kills > best.kills ? r : best, raids[0]);
-    const longestRaid = raids.reduce((longest, r) => r.duration > longest.duration ? r : longest, raids[0]);
+  const {
+    prestige,
+    tacticalScore,
+    playstyle,
+    playstyleConfidence,
+    serviceRecord,
+    streaks,
+    records,
+    mapBreakdown,
+    loadoutBreakdown,
+    careerTimeline,
+    achievements,
+    unlockedAchievementCount,
+  } = dossier;
 
-    return { bestProfit, worstProfit, mostKills, longestRaid };
-  }, [raids]);
-
-  // Define achievements
-  const achievements: Achievement[] = useMemo(() => {
-    const result: Achievement[] = [
-      {
-        id: 'first_raid',
-        name: 'First Blood',
-        description: 'Complete your first raid',
-        icon: <Skull size={20} />,
-        unlocked: raids.length >= 1,
-      },
-      {
-        id: 'veteran',
-        name: 'Veteran',
-        description: 'Complete 100 raids',
-        icon: <Trophy size={20} />,
-        unlocked: raids.length >= 100,
-        progress: raids.length,
-        maxProgress: 100,
-      },
-      {
-        id: 'profit_king',
-        name: 'Profit King',
-        description: 'Accumulate $1,000,000 profit',
-        icon: <TrendingUp size={20} />,
-        unlocked: analytics.lifetimeProfit >= 1000000,
-        progress: analytics.lifetimeProfit,
-        maxProgress: 1000000,
-      },
-      {
-        id: 'extractor',
-        name: 'The Extractor',
-        description: 'Achieve 75% extraction rate across 50 raids',
-        icon: <Target size={20} />,
-        unlocked: analytics.extractionRate >= 75 && raids.length >= 50,
-        progress: analytics.extractionRate,
-        maxProgress: 75,
-      },
-    ];
-
-    // Records-based achievements
-    result.push({
-      id: 'money_maker',
-      name: 'Money Maker',
-      description: 'Earn $100,000 in a single raid',
-      icon: <Star size={20} />,
-      unlocked: records ? records.bestProfit.netProfit >= 100000 : false,
-    });
-
-    result.push({
-      id: 'slayer',
-      name: 'Slayer',
-      description: 'Get 10 kills in a single raid',
-      icon: <Zap size={20} />,
-      unlocked: records ? records.mostKills.kills >= 10 : false,
-    });
-
-    result.push({
-      id: 'rescue_expert',
-      name: 'Rescue Expert',
-      description: 'Recover 90%+ gear value in death',
-      icon: <Shield size={20} />,
-      unlocked: gearAnalytics.bestRescuePercentage >= 90,
-    });
-
-    result.push({
-      id: 'marathon',
-      name: 'Marathon Man',
-      description: 'Survive a raid lasting 60+ minutes',
-      icon: <Clock size={20} />,
-      unlocked: records ? records.longestRaid.duration >= 60 : false,
-    });
-
-    return result;
-  }, [raids, analytics, gearAnalytics, records]);
-
-  const unlockedCount = achievements.filter(a => a.unlocked).length;
-
-  // Prestige level based on completed raids
-  const prestigeLevel = useMemo(() => {
-    if (raids.length >= 1000) return { level: 10, title: 'Legend' };
-    if (raids.length >= 500) return { level: 9, title: 'Master' };
-    if (raids.length >= 250) return { level: 8, title: 'Expert' };
-    if (raids.length >= 100) return { level: 7, title: 'Veteran' };
-    if (raids.length >= 75) return { level: 6, title: 'Seasoned' };
-    if (raids.length >= 50) return { level: 5, title: 'Skilled' };
-    if (raids.length >= 25) return { level: 4, title: 'Trained' };
-    if (raids.length >= 10) return { level: 3, title: 'Rookie' };
-    if (raids.length >= 5) return { level: 2, title: 'Beginner' };
-    if (raids.length >= 1) return { level: 1, title: 'Recruit' };
-    return { level: 0, title: 'Unknown' };
-  }, [raids]);
+  if (raids.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Command dossier"
+          title="Commander"
+          meta="Awaiting service record"
+        />
+        <EmptyState
+          icon={<User size={48} />}
+          title="No service record yet"
+          description="Log your first operation to begin building your commander dossier."
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 page-enter">
-      {/* Profile Header */}
-      <Card className="p-6 relative overflow-hidden">
-        <div className="corner-accent top-left" />
-        <div className="corner-accent top-right" />
-        <div className="flex items-center gap-6 flex-wrap">
-          {/* Avatar */}
-          <div className="w-20 h-20 border border-abi-orange/50 bg-abi-orange/10 flex items-center justify-center">
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Command dossier"
+        title="Commander"
+        meta={`${serviceRecord.totalDeployments} operations · ${prestige.title}`}
+        actions={
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <RoiViewToggle />
+            {playstyle && (
+              <span className="hud-chip text-abi-orange">
+                {playstyle}
+                {playstyleConfidence === 'low' ? ' · low confidence' : ''}
+              </span>
+            )}
+          </div>
+        }
+      />
+
+      {/* Dossier hero */}
+      <RevealSection immediate>
+      <header className="hud-card px-4 py-5 sm:px-5 relative overflow-hidden">
+        <div className="flex flex-wrap items-start gap-5">
+          <motion.div
+            className="w-20 h-20 border border-abi-orange/50 bg-abi-orange/10 flex items-center justify-center shrink-0"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.35 }}
+          >
             <User size={40} className="text-abi-orange" strokeWidth={1.5} />
+          </motion.div>
+
+          <div className="min-w-0 flex-1">
+            <Badge variant="orange" size="sm">{prestige.title}</Badge>
+            <DataValue className="mt-2 text-2xl">Commander</DataValue>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+              <Caption tone="muted">Prestige {prestige.level}</Caption>
+              <Caption tone="muted">{serviceRecord.totalDeployments} operations</Caption>
+              <Caption tone="muted">{serviceRecord.totalSessions} deployments</Caption>
+            </div>
           </div>
 
-          {/* Info */}
-          <div>
-            <Badge variant="orange" size="sm">{prestigeLevel.title}</Badge>
-            <h1 className="text-2xl font-bold font-orbitron text-abi-text mt-2">Commander</h1>
-            <div className="flex items-center gap-4 mt-2 font-mono text-[11px] text-abi-text-muted uppercase tracking-wider">
-              <span>Prestige {prestigeLevel.level}</span>
-              <span className="text-abi-border">|</span>
-              <span>{raids.length} raids</span>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="ml-auto grid grid-cols-3 gap-8 text-center">
-            <div>
-              <p className={`text-2xl font-bold font-orbitron tabular-nums ${analytics.lifetimeProfit >= 0 ? 'text-abi-success' : 'text-abi-danger'}`}>
-                ${formatCurrency(analytics.lifetimeProfit)}
-              </p>
-              <p className="font-mono text-[10px] text-abi-text-muted uppercase tracking-wider mt-1">Lifetime profit</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold font-orbitron tabular-nums text-abi-text">
-                {formatPercentage(analytics.extractionRate)}
-              </p>
-              <p className="font-mono text-[10px] text-abi-text-muted uppercase tracking-wider mt-1">Extraction</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold font-orbitron tabular-nums text-abi-text">
-                {analytics.totalRaids}
-              </p>
-              <p className="font-mono text-[10px] text-abi-text-muted uppercase tracking-wider mt-1">Total raids</p>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 w-full xl:w-auto xl:ml-auto">
+            <DossierMetric
+              label="Tactical score"
+              value={tacticalScore > 0 ? (
+                <CountUpValue value={tacticalScore} format={(n) => String(Math.round(n))} />
+              ) : '—'}
+              tone={tacticalScore >= 70 ? 'positive' : tacticalScore >= 40 ? 'default' : 'muted'}
+            />
+            <DossierMetric
+              label="Lifetime profit"
+              value={`$${formatCurrency(serviceRecord.lifetimeProfit)}`}
+              tone={serviceRecord.lifetimeProfit >= 0 ? 'positive' : 'negative'}
+            />
+            <DossierMetric
+              label="Extraction"
+              value={formatPercentage(serviceRecord.extractionRate)}
+            />
+            <DossierMetric
+              label="Average ROI"
+              value={formatPercentage(serviceRecord.averageROI)}
+              tone={serviceRecord.averageROI >= 0 ? 'positive' : 'negative'}
+            />
           </div>
         </div>
-      </Card>
+      </header>
+      </RevealSection>
 
-      {/* Lifetime Records */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={16} className="text-green-400" />
-            <span className="text-xs text-abi-text-muted uppercase">Best Profit</span>
-          </div>
-          {records ? (
-            <>
-              <p className="text-xl font-bold text-green-400">
-                +${formatCurrency(records.bestProfit.netProfit)}
-              </p>
-              <p className="text-sm text-abi-text-dim">{records.bestProfit.map}</p>
-            </>
-          ) : (
-            <p className="text-abi-text-dim">No data</p>
-          )}
-        </Card>
+      <RevealSection immediate delay={0.06}>
+      <section aria-label="Commander summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StaggerContainer className="contents xl:contents" immediate>
+          <StaggerItem><StatCard label="Lifetime profit" value={`$${formatCurrency(serviceRecord.lifetimeProfit)}`} subValue={`${formatPercentage(serviceRecord.averageROI)} average ROI`} icon={<Wallet size={18} />} /></StaggerItem>
+          <StaggerItem><StatCard label="Extraction rate" value={formatPercentage(serviceRecord.extractionRate)} subValue={`${serviceRecord.totalKills} kills · ${serviceRecord.totalDeaths} deaths`} icon={<Target size={18} />} /></StaggerItem>
+          <StaggerItem><StatCard label="Tactical score" value={tacticalScore > 0 ? String(tacticalScore) : '—'} subValue={playstyle ?? 'Insufficient history'} icon={<Award size={18} />} /></StaggerItem>
+          <StaggerItem><StatCard label="Achievements" value={`${unlockedAchievementCount}/${achievements.length}`} subValue={`${serviceRecord.totalHighlights} highlights recorded`} icon={<Trophy size={18} />} /></StaggerItem>
+        </StaggerContainer>
+      </section>
+      </RevealSection>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={16} className="text-red-400" />
-            <span className="text-xs text-abi-text-muted uppercase">Worst Profit</span>
-          </div>
-          {records ? (
-            <>
-              <p className="text-xl font-bold text-red-400">
-                ${formatCurrency(records.worstProfit.netProfit)}
-              </p>
-              <p className="text-sm text-abi-text-dim">{records.worstProfit.map}</p>
-            </>
-          ) : (
-            <p className="text-abi-text-dim">No data</p>
-          )}
-        </Card>
+      {/* Service record + streaks */}
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.4fr_1fr]">
+        <section aria-label="Service record" className="hud-card rounded-xl p-5 relative">
+          <MetaLabel tone="accent" className="block mb-1">Service record</MetaLabel>
+          <Caption tone="muted" className="mb-4">Lifetime operational history</Caption>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Target size={16} className="text-abi-orange" />
-            <span className="text-xs text-abi-text-muted uppercase">Most Kills</span>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <ServiceStat label="First deployment" value={formatDateTime(serviceRecord.firstDeployment!)} />
+            <ServiceStat label="Last deployment" value={formatDateTime(serviceRecord.lastDeployment!)} />
+            <ServiceStat label="Avg duration" value={formatDuration(serviceRecord.averageDuration)} />
+            <ServiceStat label="Lifetime investment" value={`$${formatCurrency(serviceRecord.lifetimeInvestment)}`} />
+            <ServiceStat label="Lifetime loot" value={`$${formatCurrency(serviceRecord.lifetimeLoot)}`} />
+            <ServiceStat label="Highlights" value={String(serviceRecord.totalHighlights)} />
           </div>
-          {records ? (
-            <>
-              <p className="text-xl font-bold text-abi-text">{records.mostKills.kills}</p>
-              <p className="text-sm text-abi-text-dim">{records.mostKills.map}</p>
-            </>
-          ) : (
-            <p className="text-abi-text-dim">No data</p>
-          )}
-        </Card>
+        </section>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock size={16} className="text-blue-400" />
-            <span className="text-xs text-abi-text-muted uppercase">Longest Raid</span>
+        <section aria-label="Operational streaks" className="hud-card rounded-xl p-5 relative">
+          <MetaLabel tone="accent" className="block mb-1">Operational streaks</MetaLabel>
+          <Caption tone="muted" className="mb-4">Current and career-best runs</Caption>
+
+          <div className="grid grid-cols-2 gap-3">
+            <StreakStat label="Extract streak" current={streaks.currentExtraction} best={streaks.longestExtraction} />
+            <StreakStat label="Profit streak" current={streaks.currentProfit} best={streaks.longestProfit} />
+            <StreakStat
+              label="Dry streak"
+              current={streaks.currentDry}
+              best={streaks.currentDry}
+              tone="negative"
+              hideBest
+            />
+            <StreakStat
+              label="Career ops"
+              current={serviceRecord.totalDeployments}
+              best={serviceRecord.totalSessions}
+              currentLabel="Raids"
+              bestLabel="Sessions"
+            />
           </div>
-          {records ? (
-            <>
-              <p className="text-xl font-bold text-abi-text">{records.longestRaid.duration}m</p>
-              <p className="text-sm text-abi-text-dim">{records.longestRaid.map}</p>
-            </>
-          ) : (
-            <p className="text-abi-text-dim">No data</p>
-          )}
-        </Card>
+        </section>
       </div>
 
-      {/* Achievements */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider flex items-center gap-2">
-            <Trophy size={16} className="text-abi-orange" />
-            Achievements
-          </h3>
-          <span className="text-sm text-abi-text-muted">
-            {unlockedCount}/{achievements.length} unlocked
-          </span>
+      {/* Career records */}
+      <section aria-label="Career records">
+        <div className="mb-3">
+          <MetaLabel tone="accent" className="block mb-1">Career records</MetaLabel>
+          <Caption tone="muted">Personal bests across all operations</Caption>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {achievements.map(achievement => (
-            <div
-              key={achievement.id}
-              className={`
-                p-3 rounded-lg border transition-all duration-200
-                ${achievement.unlocked
-                  ? 'bg-abi-orange/10 border-abi-orange/30'
-                  : 'bg-abi-bg border-abi-border opacity-50'
-                }
-              `}
-            >
-              <div className={`mb-2 ${achievement.unlocked ? 'text-abi-orange' : 'text-abi-text-dim'}`}>
-                {achievement.icon}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {records.map(record => (
+            <div key={record.label} className="hud-card p-4 relative">
+              <Caption tone="muted" className="uppercase tracking-wider">{record.label}</Caption>
+              <DataValue className="mt-1 text-lg">{record.value}</DataValue>
+              <div className="flex items-center gap-2 mt-1">
+                <MapName>{record.subValue}</MapName>
+                {record.timestamp && (
+                  <Caption tone="muted">{formatDateTime(record.timestamp)}</Caption>
+                )}
               </div>
-              <p className="text-sm font-semibold text-abi-text">{achievement.name}</p>
-              <p className="text-xs text-abi-text-muted mt-1">{achievement.description}</p>
-              {!achievement.unlocked && achievement.progress !== undefined && achievement.maxProgress && (
-                <ProgressBar
-                  value={achievement.progress}
-                  max={achievement.maxProgress}
-                  variant="orange"
-                  size="sm"
-                  className="mt-2"
-                />
-              )}
             </div>
           ))}
         </div>
-      </Card>
+      </section>
+
+      {/* Maps + loadouts */}
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <section aria-label="Theater breakdown" className="hud-card rounded-xl p-5 relative">
+          <MetaLabel tone="accent" className="block mb-1">Theater service</MetaLabel>
+          <Caption tone="muted" className="mb-4">Maps by lifetime performance</Caption>
+
+          {mapBreakdown.length === 0 ? (
+            <Caption tone="secondary">No map data available.</Caption>
+          ) : (
+            <div className="space-y-2">
+              {mapBreakdown.map(row => (
+                <div
+                  key={row.map}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 items-center py-2 border-b border-abi-border/50 last:border-0"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin size={14} className="text-abi-text-dim shrink-0" />
+                    <MapName className="truncate">{row.map}</MapName>
+                  </div>
+                  <Caption tone="muted">{row.raids} ops</Caption>
+                  <Caption tone="muted">{formatPercentage(row.extractionRate)} ext</Caption>
+                  <Caption tone={row.totalProfit >= 0 ? 'positive' : 'negative'}>
+                    ${formatCurrency(row.totalProfit)}
+                  </Caption>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Loadout service" className="hud-card rounded-xl p-5 relative">
+          <MetaLabel tone="accent" className="block mb-1">Loadout service</MetaLabel>
+          <Caption tone="muted" className="mb-4">Performance by gear investment tier</Caption>
+
+          {loadoutBreakdown.length === 0 ? (
+            <Caption tone="secondary">Log gear value to populate loadout history.</Caption>
+          ) : (
+            <div className="space-y-2">
+              {loadoutBreakdown.map(row => (
+                <div
+                  key={row.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 items-center py-2 border-b border-abi-border/50 last:border-0"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Shield size={14} className="text-abi-text-dim shrink-0" />
+                    <Caption tone="secondary" className="truncate">{row.label}</Caption>
+                  </div>
+                  <Caption tone="muted">{row.raids} ops</Caption>
+                  <Caption tone="muted">{formatPercentage(row.extractionRate)} ext</Caption>
+                  <Caption tone={row.averageProfit >= 0 ? 'positive' : 'negative'}>
+                    ${formatCurrency(row.averageProfit)} avg
+                  </Caption>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Achievements */}
+      <section aria-label="Achievements" className="hud-card rounded-xl p-5 relative">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <MetaLabel tone="accent" className="block mb-1">Achievements</MetaLabel>
+            <Caption tone="muted">{unlockedAchievementCount}/{achievements.length} unlocked</Caption>
+          </div>
+          <Trophy size={18} className="text-abi-orange" />
+        </div>
+
+        <StaggerContainer className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {achievements.map(achievement => (
+            <StaggerItem key={achievement.id}>
+              <AchievementCard achievement={achievement} />
+            </StaggerItem>
+          ))}
+        </StaggerContainer>
+      </section>
+
+      {/* Career timeline */}
+      <section aria-label="Career timeline" className="hud-card rounded-xl p-5 relative">
+        <MetaLabel tone="accent" className="block mb-1">Career timeline</MetaLabel>
+        <Caption tone="muted" className="mb-4">Key milestones across your service record</Caption>
+
+        {careerTimeline.length === 0 ? (
+          <Caption tone="secondary">Timeline will populate as operations are logged.</Caption>
+        ) : (
+          <StaggerList>
+            {careerTimeline.map((entry, index) => (
+              <div
+                key={`${entry.type}-${entry.timestamp}-${index}`}
+                className="grid grid-cols-[88px_minmax(0,1fr)] gap-3 py-3 border-b border-abi-border/50 last:border-0"
+              >
+                <Caption tone="muted" className="font-mono text-[11px]">
+                  {formatDateTime(entry.timestamp)}
+                </Caption>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <TimelineIcon type={entry.type} />
+                    <Caption tone="secondary">{entry.label}</Caption>
+                  </div>
+                  <Caption tone="muted" className="mt-0.5">{entry.detail}</Caption>
+                </div>
+              </div>
+            ))}
+          </StaggerList>
+        )}
+      </section>
     </div>
   );
+}
+
+function DossierMetric({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: ReactNode;
+  tone?: 'default' | 'positive' | 'negative' | 'muted';
+}) {
+  const toneClass =
+    tone === 'positive'
+      ? 'text-positive'
+      : tone === 'negative'
+        ? 'text-negative'
+        : tone === 'muted'
+          ? 'text-muted'
+          : 'text-primary';
+
+  return (
+    <div>
+      <Caption tone="muted" className="uppercase tracking-wider">{label}</Caption>
+      <p className={`text-xl font-bold font-orbitron tabular-nums mt-1 ${toneClass}`}>{value}</p>
+    </div>
+  );
+}
+
+function ServiceStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-abi-border/60 bg-abi-bg/30 p-3">
+      <Caption tone="muted" className="uppercase tracking-wider">{label}</Caption>
+      <p className="text-sm text-primary mt-1 font-mono">{value}</p>
+    </div>
+  );
+}
+
+function StreakStat({
+  label,
+  current,
+  best,
+  tone = 'default',
+  hideBest = false,
+  currentLabel = 'Current',
+  bestLabel = 'Best',
+}: {
+  label: string;
+  current: number;
+  best: number;
+  tone?: 'default' | 'negative';
+  hideBest?: boolean;
+  currentLabel?: string;
+  bestLabel?: string;
+}) {
+  const valueClass = tone === 'negative' ? 'text-negative' : 'text-primary';
+
+  return (
+    <div className="border border-abi-border/60 bg-abi-bg/30 p-3">
+      <Caption tone="muted" className="uppercase tracking-wider">{label}</Caption>
+      <div className="flex items-end justify-between mt-2 gap-2">
+        <div>
+          <Caption tone="muted">{currentLabel}</Caption>
+          <p className={`text-xl font-bold font-orbitron tabular-nums ${valueClass}`}>{current}</p>
+        </div>
+        {!hideBest && (
+          <div className="text-right">
+            <Caption tone="muted">{bestLabel}</Caption>
+            <p className="text-sm font-mono text-secondary">{best}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AchievementCard({ achievement }: { achievement: CommanderAchievement }) {
+  return (
+    <motion.div
+      className={`p-3 border transition-colors ${
+        achievement.unlocked
+          ? 'bg-abi-orange/10 border-abi-orange/30'
+          : 'bg-abi-bg/30 border-abi-border opacity-60'
+      }`}
+      initial={achievement.unlocked ? { scale: 0.96, opacity: 0 } : false}
+      whileInView={achievement.unlocked ? { scale: 1, opacity: 1 } : undefined}
+      viewport={{ once: true }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className={`mb-2 ${achievement.unlocked ? 'text-abi-orange' : 'text-abi-text-dim'}`}>
+        {ACHIEVEMENT_ICONS[achievement.id] ?? <Crosshair size={20} />}
+      </div>
+      <p className="text-sm font-semibold text-primary">{achievement.name}</p>
+      <Caption tone="muted" className="mt-1">{achievement.description}</Caption>
+      {!achievement.unlocked && achievement.progress !== undefined && achievement.maxProgress && (
+        <ProgressBar
+          value={achievement.progress}
+          max={achievement.maxProgress}
+          variant="orange"
+          size="sm"
+          className="mt-2"
+        />
+      )}
+    </motion.div>
+  );
+}
+
+function TimelineIcon({ type }: { type: string }) {
+  switch (type) {
+    case 'first_raid':
+      return <Crosshair size={14} className="text-abi-orange shrink-0" />;
+    case 'milestone_raids':
+      return <Target size={14} className="text-abi-text-dim shrink-0" />;
+    case 'milestone_profit':
+      return <Wallet size={14} className="text-positive shrink-0" />;
+    case 'best_raid':
+      return <Flame size={14} className="text-abi-orange shrink-0" />;
+    case 'highlight':
+      return <Star size={14} className="text-warning shrink-0" />;
+    default:
+      return <Clock size={14} className="text-abi-text-dim shrink-0" />;
+  }
 }

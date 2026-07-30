@@ -11,8 +11,9 @@ import { SettingsPage } from './pages/Settings';
 import { Overview } from './pages/Overview';
 import { Gear } from './pages/Gear';
 import { Performance } from './pages/Performance';
-import { generateMockRaids, generateMockSessions, generateMockHighlights } from './utils/mockData';
-import { saveRaids, saveSessions, saveHighlights } from './utils/storage';
+import { IntelligenceCenter } from './pages/IntelligenceCenter';
+import { PageTransition } from './components/motion';
+import { loadDemoData } from './utils/mockData';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('overview');
@@ -24,12 +25,7 @@ export default function App() {
     if (!isDataLoaded) {
       const hasVisited = localStorage.getItem('abi_has_visited');
       if (!hasVisited) {
-        const mockRaids = generateMockRaids();
-        const mockSessions = generateMockSessions();
-        const mockHighlights = generateMockHighlights();
-        saveRaids(mockRaids);
-        saveSessions(mockSessions);
-        saveHighlights(mockHighlights);
+        loadDemoData();
         localStorage.setItem('abi_has_visited', 'true');
       }
       setIsDataLoaded(true);
@@ -65,6 +61,8 @@ export default function App() {
         return <Gear />;
       case 'performance':
         return <Performance />;
+      case 'intelligence':
+        return <IntelligenceCenter />;
       case 'commander':
         return <Commander />;
       case 'settings':
@@ -87,9 +85,9 @@ export default function App() {
       <main id="main-content" className="main-content">
         <div className="lg:hidden h-16" />
 
-        <div className="page-content page-enter" key={currentPage}>
+        <PageTransition pageKey={currentPage} className="page-content">
           {renderPage()}
-        </div>
+        </PageTransition>
       </main>
 
       <RaidDetailPopup

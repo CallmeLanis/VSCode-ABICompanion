@@ -1,5 +1,9 @@
 import React, { useEffect } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
+import { MOTION_DURATION, MOTION_EASE } from '../motion/motionTokens';
+import { useReducedMotion } from '../motion/useReducedMotion';
+import { StaggerContainer, StaggerItem } from '../motion/RevealSection';
 
 interface ModalProps {
   isOpen: boolean;
@@ -18,6 +22,8 @@ export function Modal({
   size = 'md',
   showClose = true,
 }: ModalProps) {
+  const reduced = useReducedMotion();
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -39,8 +45,6 @@ export function Modal({
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
   const sizeStyles = {
     sm: 'max-w-sm',
     md: 'max-w-md',
@@ -54,47 +58,66 @@ export function Modal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
-      onClick={onClose}
-    >
-      <div className="absolute inset-0 bg-abi-bg/80 backdrop-blur-sm" />
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduced ? 0.01 : MOTION_DURATION.fast }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="absolute inset-0 bg-abi-bg/80 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
 
-      <div
-        className={`
-          relative bg-abi-bg-elevated border border-abi-border rounded-xl
-          shadow-elevated w-full ${sizeStyles[size]}
-          animate-slide-up max-h-[90vh] flex flex-col
-        `}
-        onClick={stopPropagation}
-      >
-        {(title || showClose) && (
-          <div className="flex items-center justify-between px-4 py-3 border-b border-abi-border shrink-0">
-            {title && (
-              <h2 className="type-heading text-primary">
-                {title}
-              </h2>
+          <motion.div
+            className={`
+              relative bg-abi-bg-elevated border border-abi-border rounded-xl
+              shadow-elevated w-full ${sizeStyles[size]}
+              max-h-[90vh] flex flex-col
+            `}
+            onClick={stopPropagation}
+            initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 8 }}
+            transition={{ duration: reduced ? 0.01 : MOTION_DURATION.base, ease: MOTION_EASE }}
+          >
+            {(title || showClose) && (
+              <div className="flex items-center justify-between px-4 py-3 border-b border-abi-border shrink-0">
+                {title && (
+                  <h2 className="type-heading text-primary">
+                    {title}
+                  </h2>
+                )}
+                {showClose && (
+                  <button
+                    onClick={onClose}
+                    className="
+                      w-8 h-8 flex items-center justify-center rounded-md
+                      text-abi-text-muted hover:text-abi-text hover:bg-abi-bg-hover
+                      border border-transparent hover:border-abi-border
+                      transition-colors duration-200
+                    "
+                    aria-label="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
             )}
-            {showClose && (
-              <button
-                onClick={onClose}
-                className="
-                  w-8 h-8 flex items-center justify-center rounded-md
-                  text-abi-text-muted hover:text-abi-text hover:bg-abi-bg-hover
-                  border border-transparent hover:border-abi-border
-                  transition-colors duration-200
-                "
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            )}
-          </div>
-        )}
 
-        <div className="flex-1 overflow-y-auto p-4">{children}</div>
-      </div>
-    </div>
+            <StaggerContainer className="flex-1 overflow-y-auto p-4" immediate>
+              <StaggerItem>{children}</StaggerItem>
+            </StaggerContainer>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -107,6 +130,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'primary';
+  shake?: boolean;
 }
 
 export function ConfirmModal({
@@ -118,7 +142,9 @@ export function ConfirmModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   variant = 'primary',
+  shake = false,
 }: ConfirmModalProps) {
+  const reduced = useReducedMotion();
   const variantStyles = {
     danger: 'bg-abi-danger text-abi-bg hover:brightness-110',
     warning: 'bg-abi-warning text-abi-bg hover:brightness-110',
@@ -127,7 +153,15 @@ export function ConfirmModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        animate={
+          shake && !reduced
+            ? { x: [0, -4, 4, -3, 3, 0] }
+            : undefined
+        }
+        transition={{ duration: 0.4 }}
+      >
         <p className="text-abi-text-muted text-sm leading-relaxed">{message}</p>
         <div className="flex gap-3 justify-end">
           <button
@@ -152,7 +186,7 @@ export function ConfirmModal({
             {confirmText}
           </button>
         </div>
-      </div>
+      </motion.div>
     </Modal>
   );
 }

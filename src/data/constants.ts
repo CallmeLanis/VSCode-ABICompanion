@@ -1,4 +1,4 @@
-import type { MapData, GameMode, AmmoCaliber, ConsumableTemplate, Vendor } from '../types';
+import type { MapData, GameMode, ConsumableTemplate, Vendor } from '../types';
 
 // Maps
 export const MAPS: MapData[] = [
@@ -17,135 +17,8 @@ export const GAME_MODES: GameMode[] = [
   { id: 'forbidden', name: 'Forbidden', shortName: 'Forb' },
 ];
 
-// Ammo Calibers - Standardized List
-export const AMMO_CALIBERS: AmmoCaliber[] = [
-  {
-    id: '545x39',
-    name: '5.45x39',
-    tiers: [
-      { id: '545_pp', name: 'PP', costPerRound: 169 },
-      { id: '545_bp', name: 'BP', costPerRound: 1534 },
-      { id: '545_bs', name: 'BS', costPerRound: 6612 },
-    ],
-  },
-  {
-    id: '556x45',
-    name: '5.56x45',
-    tiers: [
-      { id: '556_m855', name: 'M855', costPerRound: 200 },
-      { id: '556_m856a1', name: 'M856A1', costPerRound: 836 },
-      { id: '556_m995', name: 'M995', costPerRound: 7020 },
-    ],
-  },
-  {
-    id: '57x28',
-    name: '5.7x28',
-    tiers: [
-      { id: '57_r37f', name: 'R37F', costPerRound: 237 },
-      { id: '57_ss190', name: 'SS190', costPerRound: 1980 },
-      { id: '57_ss198', name: 'SS198', costPerRound: 6566 },
-    ],
-  },
-  {
-    id: '58x42',
-    name: '5.8x42',
-    tiers: [
-      { id: '58_dvp88', name: 'DVP88', costPerRound: 1872 },
-      { id: '58_dvc12', name: 'DVC12', costPerRound: 7353 },
-    ],
-  },
-  {
-    id: '762x25',
-    name: '7.62x25',
-    tiers: [
-      { id: '762x25_pst', name: 'PST', costPerRound: 60 },
-      { id: '762x25_lrnpc', name: 'LRNPC', costPerRound: 100 },
-    ],
-  },
-  {
-    id: '762x39',
-    name: '7.62x39',
-    tiers: [
-      { id: '762_bp', name: 'BP', costPerRound: 1652 },
-      { id: '762_ap', name: 'AP', costPerRound: 6664 },
-    ],
-  },
-  {
-    id: '762x51',
-    name: '7.62x51',
-    tiers: [
-      { id: '762x51_m80', name: 'M80', costPerRound: 1406 },
-      { id: '762x51_m61', name: 'M61', costPerRound: 17290 },
-      { id: '762x51_m993', name: 'M993', costPerRound: 25000 },
-    ],
-  },
-  {
-    id: '762x54',
-    name: '7.62x54',
-    tiers: [
-      { id: '762x54_lps', name: 'LPS', costPerRound: 1700 },
-      { id: '762x54_7bt1', name: '7BT1', costPerRound: 4879 },
-      { id: '762x54_snb', name: 'SNB', costPerRound: 20000 },
-      { id: '762x54_7n37', name: '7N37', costPerRound: 30000 },
-    ],
-  },
-  {
-    id: '9x19',
-    name: '9x19',
-    tiers: [
-      { id: '9mm_pst', name: 'PST', costPerRound: 50 },
-      { id: '9mm_pso', name: 'PSO', costPerRound: 200 },
-      { id: '9mm_dumdum', name: 'DUM-DUM', costPerRound: 300 },
-      { id: '9mm_7n31', name: '7N31', costPerRound: 1368 },
-    ],
-  },
-  {
-    id: '939',
-    name: '9x39',
-    tiers: [
-      { id: '939_sp5', name: 'SP-5', costPerRound: 250 },
-      { id: '939_sp6', name: 'SP-6', costPerRound: 1036 },
-      { id: '939_7n12', name: '7N12', costPerRound: 4977 },
-    ],
-  },
-  {
-    id: '44magnum',
-    name: '.44 Magnum',
-    tiers: [
-      { id: '44_fmj', name: 'FMJ', costPerRound: 300 },
-      { id: '44_ap', name: 'AP', costPerRound: 600 },
-    ],
-  },
-  {
-    id: '45acp',
-    name: '.45 ACP',
-    tiers: [
-      { id: '45acp_hs', name: 'HS', costPerRound: 70 },
-      { id: '45acp_fmj', name: 'FMJ', costPerRound: 70 },
-      { id: '45acp_ap', name: 'AP', costPerRound: 200 },
-      { id: '45acp_apwc', name: 'APWC', costPerRound: 2500 },
-    ],
-  },
-  {
-    id: '338lapua',
-    name: '.338 Lapua',
-    tiers: [
-      { id: '338_upz', name: 'UPZ', costPerRound: 3458 },
-      { id: '338_fmj', name: 'FMJ', costPerRound: 5472 },
-      { id: '338_ap', name: 'AP', costPerRound: 65000 },
-    ],
-  },
-  {
-    id: '12g',
-    name: '12 Gauge',
-    tiers: [
-      { id: '12g_buck', name: 'Buckshot', costPerRound: 80 },
-      { id: '12g_slug', name: 'Slug', costPerRound: 120 },
-      { id: '12g_flechette', name: 'Flechette', costPerRound: 180 },
-      { id: '12g_ap20', name: 'AP-20', costPerRound: 350 },
-    ],
-  },
-];
+// Ammo catalog lives in LootDB (localStorage). Mission Debrief reads type=ammo
+// entries and uses marketPrice as costPerRound.
 
 // Consumables
 export const CONSUMABLES: ConsumableTemplate[] = [
@@ -198,12 +71,12 @@ export const RARITY_BG_COLORS: Record<string, string> = {
 export const STATUS_COLORS: Record<string, string> = {
   EXTRACTED: 'text-green-400',
   DIED: 'text-red-400',
-  FLED: 'text-yellow-400',
+  FLED: 'text-red-400',
 };
 
 // Status icons
 export const STATUS_ICONS: Record<string, string> = {
   EXTRACTED: '✓',
   DIED: '✗',
-  FLED: '↩',
+  FLED: '✗',
 };

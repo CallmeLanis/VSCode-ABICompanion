@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sessionDuration: 60, // minutes
   highlightProfitThreshold: 50000,
   highlightKillThreshold: 5,
+  roiMode: 'operational',
 };
 
 /**
@@ -154,7 +155,10 @@ export function getLootDBItemByName(name: string): LootDBItem | undefined {
 
 // Settings
 export function getSettings(): AppSettings {
-  return getItem<AppSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+  return {
+    ...DEFAULT_SETTINGS,
+    ...getItem<Partial<AppSettings>>(STORAGE_KEYS.SETTINGS, {}),
+  };
 }
 
 // Returns only stored settings without applying defaults — used to avoid
@@ -167,6 +171,14 @@ export function getStoredSettings(): Partial<AppSettings> {
 // Persist only explicit user-provided settings (do not inject defaults).
 export function saveSettings(settings: Partial<AppSettings>): void {
   setItem(STORAGE_KEYS.SETTINGS, settings);
+  invalidateQueries('settings');
+}
+
+export function updateSettings(settings: Partial<AppSettings>): void {
+  setItem(STORAGE_KEYS.SETTINGS, {
+    ...getStoredSettings(),
+    ...settings,
+  });
   invalidateQueries('settings');
 }
 

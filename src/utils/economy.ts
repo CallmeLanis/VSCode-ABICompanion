@@ -1,4 +1,4 @@
-import type { Raid, AmmoEntry, ConsumableEntry, GearRescueData, LootItem } from '../types';
+import type { Raid, RaidStatus, AmmoEntry, ConsumableEntry, GearRescueData, LootItem, Highlight, AppSettings, LootDBItem, LootSellAction, RoiMode } from '../types';
 
 /**
  * Economy Engine
@@ -31,26 +31,34 @@ export function calculateConsumablesCost(consumables: ConsumableEntry[]): number
 }
 
 /**
- * Calculate gear loss based on rescue data
- * Returns gear loss value (only actual loss, not full gear value)
+ * Calculate gear loss based on extraction outcome and rescue data.
+ * Surviving the operation returns the loadout, so nothing is lost.
  */
-export function calculateGearLoss(gearValue: number, gearRescue?: GearRescueData): number {
+export function calculateGearLoss(
+  gearValue: number,
+  gearRescue?: GearRescueData,
+  status?: RaidStatus
+): number {
+  if (status === 'EXTRACTED' || status === 'FLED') {
+    return 0;
+  }
   if (!gearRescue) {
-    // No rescue data means no rescue occurred
-    // Gear loss depends on status - if died with no rescue, full loss
+    // No rescue data means the full loadout was lost
     return gearValue;
   }
   return gearRescue.gearLoss || 0;
 }
 
 /**
- * Calculate total investment for a raid
+ * Calculate realized investment for a raid
  * Investment = Ammo + Consumables + Gear Loss
  */
 export function calculateInvestment(raid: Partial<Raid>): number {
   const ammoCost = raid.ammo ? calculateAmmoCost(raid.ammo) : 0;
   const consumablesCost = raid.consumables ? calculateConsumablesCost(raid.consumables) : 0;
-  const gearLoss = raid.gearValue ? calculateGearLoss(raid.gearValue, raid.gearRescue) : 0;
+  const gearLoss = raid.gearValue
+    ? calculateGearLoss(raid.gearValue, raid.gearRescue, raid.status)
+    : 0;
 
   return ammoCost + consumablesCost + gearLoss;
 }
@@ -81,6 +89,39 @@ export function calculateLootValue(
   }, 0);
 }
 
+export interface LootSellRecommendation {
+  action: LootSellAction;
+  marketNet: number;
+  bestVendorPrice: number;
+  bestVendorName: string;
+}
+
+/**
+ * Deterministic sell recommendation: vendor when best vendor beats market net yield.
+ */
+export function getLootSellRecommendation(
+  item: Pick<LootDBItem, 'marketPrice' | 'vendorPrices'>,
+  taxRate: number = DEFAULT_TAX_RATE
+): LootSellRecommendation {
+  const marketNet = item.marketPrice * (1 - taxRate);
+  const bestVendor = item.vendorPrices.length > 0
+    ? item.vendorPrices.reduce((best, vendor) => (vendor.price > best.price ? vendor : best))
+    : null;
+  const bestVendorPrice = bestVendor?.price ?? 0;
+  const bestVendorName = bestVendor?.vendor ?? '';
+
+  if (marketNet <= 0 && bestVendorPrice <= 0) {
+    return { action: 'hold', marketNet, bestVendorPrice, bestVendorName };
+  }
+
+  return {
+    action: bestVendorPrice > marketNet ? 'vendor' : 'market',
+    marketNet,
+    bestVendorPrice,
+    bestVendorName,
+  };
+}
+
 /**
  * Calculate net profit for a raid
  * Net = Loot Value - Investment
@@ -96,6 +137,60 @@ export function calculateNetProfit(lootValue: number, investment: number): numbe
 export function calculateROI(netProfit: number, investment: number): number {
   if (investment === 0) return 0;
   return (netProfit / investment) * 100;
+}
+
+/**
+ * Full loadout capital carried into the operation, regardless of outcome.
+ */
+export function calculateGearBrought(raid: Pick<Raid, 'gearValue' | 'gearRescue'>): number {
+  return raid.gearRescue?.gearValue ?? raid.gearValue ?? 0;
+}
+
+/**
+ * Investment denominator for the selected ROI decision view.
+ * Operational: expendable run cost only.
+ * Economic: run cost plus the loadout capital put at risk.
+ */
+export function calculateRoiInvestment(raid: Raid, mode: RoiMode): number {
+  const runCost = calculateAmmoCost(raid.ammo) + calculateConsumablesCost(raid.consumables);
+  return mode === 'economic' ? runCost + calculateGearBrought(raid) : runCost;
+}
+
+/**
+ * ROI for the selected view. Self-consistent ratio: both numerator and
+ * denominator use the same investment definition.
+ *
+ * Realized profit is deliberately NOT derived from this. Cash-flow metrics stay
+ * on the stored realized values so headline profit never overstates the outcome.
+ */
+export function calculateRoiForMode(raid: Raid, mode: RoiMode): number {
+  const investment = calculateRoiInvestment(raid, mode);
+  return calculateROI(calculateNetProfit(raid.lootValue, investment), investment);
+}
+
+/**
+ * Returns a raid whose `roi` reflects the selected view while `investment` and
+ * `netProfit` keep realized cash-flow semantics.
+ */
+export function applyRoiMode(raid: Raid, mode: RoiMode): Raid {
+  const normalizedRaid = raid.status === 'FLED'
+    ? {
+        ...raid,
+        status: 'DIED' as const,
+        deaths: Math.max(raid.deaths, 1),
+      }
+    : raid;
+
+  if (raid.status === 'FLED') {
+    const investment = calculateInvestment(normalizedRaid);
+    normalizedRaid.investment = investment;
+    normalizedRaid.netProfit = calculateNetProfit(normalizedRaid.lootValue, investment);
+  }
+
+  return {
+    ...normalizedRaid,
+    roi: calculateRoiForMode(normalizedRaid, mode),
+  };
 }
 
 /**
@@ -234,4 +329,53 @@ export function shouldHighlightRaid(
   }
 
   return { should: false, category: null };
+}
+
+/**
+ * Deterministic highlight detection for a raid.
+ * Single source of truth for auto-generated highlights:
+ * red item found → 'rare', net profit threshold → 'profit', kill threshold → 'kills'.
+ * A raid can produce multiple highlights (same behavior as the original inline logic).
+ */
+export function detectRaidHighlights(
+  raid: Raid,
+  settings: Pick<AppSettings, 'highlightProfitThreshold' | 'highlightKillThreshold'>,
+  options: { redItemFound?: boolean } = {}
+): Highlight[] {
+  const profitThreshold = settings.highlightProfitThreshold ?? 50000;
+  const killThreshold = settings.highlightKillThreshold ?? 5;
+  const highlights: Highlight[] = [];
+
+  const hasRedItem = options.redItemFound || raid.loot.some(item => item.rarity === 'red');
+  if (hasRedItem) {
+    highlights.push({
+      raidId: raid.id,
+      timestamp: raid.timestamp,
+      category: 'rare',
+      reason: 'Red item found',
+      isFavorite: false,
+    });
+  }
+
+  if (raid.netProfit >= profitThreshold) {
+    highlights.push({
+      raidId: raid.id,
+      timestamp: raid.timestamp,
+      category: 'profit',
+      reason: `Net profit $${raid.netProfit.toLocaleString()}`,
+      isFavorite: false,
+    });
+  }
+
+  if (raid.kills >= killThreshold) {
+    highlights.push({
+      raidId: raid.id,
+      timestamp: raid.timestamp,
+      category: 'kills',
+      reason: `${raid.kills} kills`,
+      isFavorite: false,
+    });
+  }
+
+  return highlights;
 }

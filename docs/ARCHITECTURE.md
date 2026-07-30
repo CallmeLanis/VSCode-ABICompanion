@@ -52,8 +52,8 @@ No `react-router`. `App.tsx` holds `currentPage` state and renders pages via swi
 ### Write path (logging a raid)
 
 1. User fills raid form in `RaidsPage.tsx`
-2. Investment calculated: ammo + consumables + gear − rescue
-3. `netProfit = lootValue − investment`, `roi = netProfit / investment`
+2. Realized investment is stored as ammo + consumables + gear loss after rescue
+3. Stored `netProfit` and `roi` preserve realized P/L compatibility
 4. `addRaid()` or `updateRaid()` in `storage.ts`
 5. `invalidateQueries()` triggers hook re-fetch
 6. Session auto-assignment via `getSessionId()` based on time gap
@@ -65,6 +65,20 @@ No `react-router`. `App.tsx` holds `currentPage` state and renders pages via swi
 2. Hooks read from `localStorage` via `storage.ts`
 3. `analytics.ts` computes curves, breakdowns, leaderboards
 4. Components render with formatters from `economy.ts` or `mockData.ts`
+
+### ROI decision views
+
+The selected `roiMode` is stored in `abi_settings` and applied on read without
+mutating raid records. It changes the ROI denominator only:
+
+- `operational`: ammo + consumables
+- `economic`: full gear brought + ammo + consumables
+
+ROI is self-consistent within its view: `roi = (lootValue - viewInvestment) / viewInvestment`.
+
+`investment` and `netProfit` always stay on realized cash flow (ammo +
+consumables + gear actually lost), so headline profit never overstates the
+outcome regardless of the selected view.
 
 ## Storage schema
 

@@ -8,3 +8,4 @@ export { PageHeader } from './PageHeader';
 export { DisplayValue, DataValue, MapName, MetaLabel, BodyText, Caption } from './Typography';
 export type { Tone } from './Typography';
 export { StatusBadge } from './StatusBadge';
+export { RoiViewToggle } from './RoiViewToggle';

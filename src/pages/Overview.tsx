@@ -1,20 +1,40 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Star, MapPin, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
-import { useRaids, useHighlights, useStoredSessions, useDashboardAnalytics } from '../hooks/useStorageQuery';
-import { formatCurrency, formatPercentage, formatNumber } from '../utils/mockData';
-import { PageHeader } from '../components/ui/PageHeader';
-import { Badge, Caption, DataValue, DisplayValue, EmptyState, MapName, MetaLabel, type Tone } from '../components/ui';
-
+import { useMemo, type ReactNode } from 'react';
+import {
+  Activity,
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  Crosshair,
+  FileText,
+  MapPin,
+  Star,
+  TrendingUp,
+} from 'lucide-react';
+import { useRoiRaids, useHighlights, useAggregatedSessions, useDashboardAnalytics } from '../hooks/useStorageQuery';
+import { formatCurrency, formatNumber, formatPercentage } from '../utils/mockData';
+import { formatDuration } from '../utils/economy';
+import { generateQuickRecommendations, MIN_OPERATIONAL_HISTORY } from '../utils/intelligence';
+import { RecommendationList } from '../components/intelligence/RecommendationCard';
+import { Badge, Caption, DataValue, DisplayValue, MapName, MetaLabel, RoiViewToggle, StatusBadge, type Tone } from '../components/ui';
+import {
+  AnimatedStatValue,
+  AnimatedBar,
+  RevealSection,
+  SparklineDraw,
+  StaggerContainer,
+  StaggerItem,
+  StaggerList,
+  AnimatedEmptyStateIcon,
+} from '../components/motion';
 interface OverviewProps {
   onRaidClick: (raidId: string) => void;
 }
 
 export function Overview({ onRaidClick }: OverviewProps) {
   const analytics = useDashboardAnalytics();
-  const raids = useRaids();
+  const raids = useRoiRaids();
   const highlights = useHighlights();
-  const sessions = useStoredSessions();
-  const [showMoreMetrics, setShowMoreMetrics] = useState(false);
+  const sessions = useAggregatedSessions();
 
   const recentRaids = useMemo(() => {
     return [...raids]
@@ -30,6 +50,54 @@ export function Overview({ onRaidClick }: OverviewProps) {
       return cum;
     });
   }, [raids]);
+
+  const operationalBrief = useMemo(() => {
+    const sorted = [...raids].sort((a, b) => b.timestamp - a.timestamp);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayRaids = sorted.filter((raid) => raid.timestamp >= todayStart.getTime());
+    const todayProfit = todayRaids.reduce((total, raid) => total + raid.netProfit, 0);
+    const extractedToday = todayRaids.filter((raid) => raid.status === 'EXTRACTED').length;
+    const extractionRateToday = todayRaids.length > 0
+      ? (extractedToday / todayRaids.length) * 100
+      : 0;
+
+    const mapPerformance = new Map<string, { raids: number; profit: number }>();
+    raids.forEach((raid) => {
+      const current = mapPerformance.get(raid.map) ?? { raids: 0, profit: 0 };
+      current.raids += 1;
+      current.profit += raid.netProfit;
+      mapPerformance.set(raid.map, current);
+    });
+    const bestMap = Array.from(mapPerformance.entries())
+      .filter(([, value]) => value.raids > 0)
+      .sort(([, a], [, b]) => (b.profit / b.raids) - (a.profit / a.raids))[0]?.[0] ?? 'Awaiting intel';
+
+    let extractionStreak = 0;
+    for (const raid of sorted) {
+      if (raid.status !== 'EXTRACTED') break;
+      extractionStreak += 1;
+    }
+
+    const totalDuration = raids.reduce((total, raid) => total + raid.duration, 0);
+    const riskLevel = analytics.dryStreak >= 3
+      ? 'High'
+      : analytics.averageROI < 0
+        ? 'Elevated'
+        : 'Controlled';
+
+    return {
+      todayProfit,
+      todayRaidCount: todayRaids.length,
+      extractionRateToday,
+      bestMap,
+      extractionStreak,
+      riskLevel,
+      averageSessionMinutes: sessions.length > 0
+        ? Math.round(totalDuration / sessions.length)
+        : 0,
+    };
+  }, [analytics.averageROI, analytics.dryStreak, raids, sessions.length]);
 
   const latestHighlight = useMemo(() => {
     const sorted = [...highlights].sort((a, b) => b.timestamp - a.timestamp);
@@ -66,6 +134,8 @@ export function Overview({ onRaidClick }: OverviewProps) {
     return todayRaids.sort((a, b) => b.netProfit - a.netProfit)[0];
   }, [raids]);
 
+  const recommendations = useMemo(() => generateQuickRecommendations(raids), [raids]);
+
   const lastUpdate = recentRaids[0]
     ? new Date(recentRaids[0].timestamp).toLocaleString('en-US', {
         month: 'short',
@@ -76,368 +146,601 @@ export function Overview({ onRaidClick }: OverviewProps) {
     : 'No raids yet';
 
   return (
-    <div className="space-y-6 page-enter">
-      <PageHeader
-        eyebrow="Tactical overview"
-        title="Mission control"
-        meta={`${formatNumber(analytics.totalRaids)} raids · updated ${lastUpdate}`}
-        actions={
-          <Badge variant="orange" className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-abi-success animate-pulse" />
-            Local
-          </Badge>
-        }
-      />
+    <div>
+      <RevealSection immediate>
+        <header className="hud-card overview-panel-static overview-panel-primary px-4 py-3 sm:px-5 sm:py-3.5 relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px overflow-hidden" aria-hidden>
+            <div className="h-full w-full bg-abi-orange/40 animate-scan-line-once" />
+          </div>
+          <div className="corner-accent top-left" />
+          <div className="corner-accent top-right" />
+          <div className="corner-accent bottom-left" />
+          <div className="corner-accent bottom-right" />
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <MetaLabel tone="accent" className="block mb-1.5">Tactical overview · Active terminal</MetaLabel>
+              <h1 className="type-display-xl text-primary">Mission Control</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <Caption tone="secondary" className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-abi-success" aria-hidden />
+                  Live · Updated {lastUpdate}
+                </Caption>
+                <Caption tone="secondary" className="inline-flex items-center gap-1.5">
+                  <Activity size={12} aria-hidden />
+                  {formatNumber(analytics.totalRaids)} operations logged
+                </Caption>
+              </div>
+            </div>
+            <div className="border-l-0 border-abi-border pt-2 lg:border-l lg:pl-5 lg:pt-0">
+              <RoiViewToggle className="mb-3 lg:justify-end" />
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <StatusReadout
+                  label="Current operation"
+                  value={recentRaids[0]?.map ?? 'Standby'}
+                  tone="accent"
+                />
+                <StatusReadout
+                  label="Extraction streak"
+                  value={`${operationalBrief.extractionStreak} clear`}
+                  tone={operationalBrief.extractionStreak > 0 ? 'positive' : 'secondary'}
+                />
+              </div>
+            </div>
+          </div>
+        </header>
+      </RevealSection>
 
-      {/* Primary KPI strip — 4 only */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <MetricCard
-          label="Lifetime profit"
-          value={formatCurrency(analytics.lifetimeProfit)}
-          color={analytics.lifetimeProfit >= 0 ? 'green' : 'red'}
-          accent
-          spark={profitSpark}
-        />
-        <MetricCard
-          label="Extraction rate"
-          value={formatPercentage(analytics.extractionRate)}
-          color="orange"
-          subValue={`${formatNumber(analytics.totalExtracted)} / ${formatNumber(analytics.totalRaids)}`}
-        />
-        <MetricCard
-          label="Average ROI"
-          value={formatPercentage(analytics.averageROI)}
-          color={analytics.averageROI >= 0 ? 'green' : 'red'}
-        />
-        <MetricCard
-          label="Total raids"
-          value={formatNumber(analytics.totalRaids)}
-          color="white"
-          subValue={analytics.dryStreak > 0 ? `Dry streak ${analytics.dryStreak} KIA` : 'On streak'}
-        />
-      </div>
+      <RevealSection immediate delay={0.06}>
+      <section aria-label="Commander performance" className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1.35fr_0.85fr]">
+        <StaggerContainer className="contents" immediate>
+          <StaggerItem>
+            <PrimaryMetric
+              value={analytics.lifetimeProfit}
+              tone={analytics.lifetimeProfit >= 0 ? 'positive' : 'negative'}
+              spark={profitSpark}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <SecondaryMetric
+              value={analytics.averageROI}
+              tone={analytics.averageROI >= 0 ? 'positive' : 'negative'}
+              detail={analytics.averageROI >= 0 ? 'Sustained gain profile' : 'Review loadout spend'}
+            />
+          </StaggerItem>
+          <StaggerItem className="lg:col-span-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <SupportingMetric
+                label="Extraction rate"
+                value={formatPercentage(analytics.extractionRate)}
+                detail={`${formatNumber(analytics.totalExtracted)} total loot secured`}
+              />
+              <SupportingMetric
+                label="Operations logged"
+                value={formatNumber(analytics.totalRaids)}
+                detail={analytics.dryStreak > 0 ? `${analytics.dryStreak} KIA without extract` : 'Extraction chain active'}
+              />
+            </div>
+          </StaggerItem>
+        </StaggerContainer>
+      </section>
+      </RevealSection>
 
-      <button
-        type="button"
-        onClick={() => setShowMoreMetrics((v) => !v)}
-        className="font-mono text-[10px] uppercase tracking-[0.14em] text-abi-text-muted hover:text-abi-orange inline-flex items-center gap-1.5 transition-colors"
-      >
-        {showMoreMetrics ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        {showMoreMetrics ? 'Hide secondary metrics' : 'Show secondary metrics'}
-      </button>
+      <RevealSection delay={0.04}>
+      <section aria-labelledby="commander-brief" className="mt-6">        <Panel
+          id="commander-brief"
+          title="Commander brief"
+          subtitle="Current operational readout"
+          variant="primary"
+          className="overflow-hidden"
+        >
+          <div className="grid md:grid-cols-3 md:divide-x md:divide-abi-border/60">
+            <BriefBand label="Today" icon={<TrendingUp size={14} />}>
+              <BriefReadout
+                label="Profit"
+                value={formatCurrency(operationalBrief.todayProfit)}
+                tone={operationalBrief.todayProfit >= 0 ? 'positive' : 'negative'}
+                detail={operationalBrief.todayRaidCount > 0 ? `${operationalBrief.todayRaidCount} raids today` : 'No raids today'}
+              />
+              <BriefReadout
+                label="Extract rate"
+                value={formatPercentage(operationalBrief.extractionRateToday)}
+                tone={operationalBrief.extractionRateToday >= 50 ? 'positive' : 'warning'}
+                detail="Current day rate"
+              />
+            </BriefBand>
+            <BriefBand label="Field" icon={<MapPin size={14} />}>
+              <BriefReadout label="Best map" value={operationalBrief.bestMap} detail="By average net" />
+              <BriefReadout
+                label="Risk level"
+                value={operationalBrief.riskLevel}
+                tone={operationalBrief.riskLevel === 'Controlled' ? 'positive' : operationalBrief.riskLevel === 'Elevated' ? 'warning' : 'negative'}
+                detail="From ROI and streak"
+              />
+            </BriefBand>
+            <BriefBand label="Tempo" icon={<Clock3 size={14} />}>
+              <BriefReadout
+                label="Current streak"
+                value={`${operationalBrief.extractionStreak} extracts`}
+                tone={operationalBrief.extractionStreak > 0 ? 'positive' : 'secondary'}
+                detail={operationalBrief.extractionStreak > 0 ? 'Clear run active' : 'Re-establish momentum'}
+              />
+              <BriefReadout
+                label="Average session"
+                value={operationalBrief.averageSessionMinutes > 0 ? `${operationalBrief.averageSessionMinutes}m` : 'No data'}
+                detail="Operational tempo"
+              />
+            </BriefBand>
+          </div>
+        </Panel>
+      </section>
+      </RevealSection>
 
-      {showMoreMetrics && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 animate-fade-in">
-          <MetricCard
-            label="Avg loot value"
-            value={formatCurrency(analytics.averageLootValue)}
-            color="white"
-          />
-          <MetricCard
-            label="Best raid today"
-            value={bestRaidToday ? formatCurrency(bestRaidToday.netProfit) : '$0'}
-            color="green"
-          />
-          <MetricCard label="Dry streak" value={`${analytics.dryStreak} KIA`} color="white" />
-          <MetricCard
-            label="Extracted"
-            value={formatNumber(analytics.totalExtracted)}
-            subValue={`of ${formatNumber(analytics.totalRaids)}`}
-            color="green"
-          />
-        </div>
-      )}
-
-      {/* Asymmetric hero: highlight dominates */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-3">
-        <Panel title="Latest highlight" className="min-h-[200px]">
-          {latestHighlightRaid ? (
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center gap-3">
+      <RevealSection delay={0.06}>
+      <section className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-[1.85fr_0.75fr]">
+        <StaggerContainer className="contents xl:contents" immediate>
+          <StaggerItem><Panel title="Latest operation" subtitle="Highlighted field dossier" variant="primary" className="min-h-[320px]">          {latestHighlightRaid ? (
+            <div className="flex h-full flex-col">
+              <div className="flex flex-wrap items-center gap-3 border-b border-abi-border/70 pb-4">
                 <Badge variant="orange" className="inline-flex items-center gap-1">
                   <Star size={10} />
                   Highlight
                 </Badge>
-                <Caption tone="secondary">
-                  {latestHighlightRaid.map} — {latestHighlightRaid.mode}
-                </Caption>
+                <Caption tone="secondary">Dossier confirmed</Caption>
                 <Caption tone="muted" className="ml-auto">
                   {new Date(latestHighlightRaid.timestamp).toLocaleDateString('en-US')}
                 </Caption>
               </div>
-
-              <DisplayValue
-                size="xl"
-                tone={latestHighlightRaid.netProfit >= 0 ? 'positive' : 'negative'}
-              >
-                {formatCurrency(latestHighlightRaid.netProfit)}
-              </DisplayValue>
-
-              <div className="grid grid-cols-3 gap-2">
-                <MiniStat label="Kills" value={String(latestHighlightRaid.kills)} />
-                <MiniStat
-                  label="ROI"
-                  value={formatPercentage(latestHighlightRaid.roi)}
-                  tone="green"
-                />
-                <MiniStat label="Map" value={latestHighlightRaid.map.split(' ')[0]} />
+              <div className="grid flex-1 gap-5 py-4 md:grid-cols-[1.1fr_0.9fr]">
+                <div className="flex flex-col justify-between">
+                  <div>
+                    <MetaLabel className="block mb-2">Operation theater</MetaLabel>
+                    <MapName className="block text-xl">{latestHighlightRaid.map}</MapName>
+                    <Caption className="mt-2 block">{latestHighlightRaid.mode} mode</Caption>
+                  </div>
+                  <div className="mt-6">
+                    <MetaLabel className="block mb-2">Net result</MetaLabel>
+                    <DisplayValue
+                      size="xl"
+                      tone={latestHighlightRaid.netProfit >= 0 ? 'positive' : 'negative'}
+                    >
+                      {formatCurrency(latestHighlightRaid.netProfit)}
+                    </DisplayValue>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 content-start gap-px border border-abi-border bg-abi-border">
+                  <DossierMetric label="Kills" value={String(latestHighlightRaid.kills)} />
+                  <DossierMetric label="Duration" value={formatDuration(latestHighlightRaid.duration)} />
+                  <DossierMetric
+                    label="ROI"
+                    value={formatPercentage(latestHighlightRaid.roi)}
+                    tone={latestHighlightRaid.roi >= 0 ? 'positive' : 'negative'}
+                  />
+                  <div className="bg-abi-bg-card p-3">
+                    <MetaLabel className="block mb-2">Extraction</MetaLabel>
+                    <StatusBadge status={latestHighlightRaid.status} />
+                  </div>
+                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => onRaidClick(latestHighlightRaid.id)}
-                className="type-caption text-accent hover:underline"
-              >
-                Open raid detail →
-              </button>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-abi-border/70 pt-4">
+                <Caption tone="secondary">
+                  Reason: {latestHighlight?.reason ?? latestHighlightRaid.highlightReason ?? 'Notable operation'}
+                </Caption>
+                <button
+                  type="button"
+                  onClick={() => onRaidClick(latestHighlightRaid.id)}
+                  className="inline-flex items-center gap-1.5 type-caption text-accent hover:text-primary transition-colors"
+                >
+                  Inspect operation <ChevronRight size={13} />
+                </button>
+              </div>
             </div>
           ) : (
-            <EmptyState
-              icon={<Star size={28} />}
-              title="No highlights yet"
-              description="High-profit or high-kill raids will appear here automatically."
+            <TacticalEmptyState
+              icon={<FileText size={30} />}
+              title="No operation dossier"
+              description="Complete raids with decisive profit, kills, or rare loot to generate your first highlighted operation."
             />
           )}
-        </Panel>
+        </Panel></StaggerItem>
 
-        <Panel title="Best session">
-          {bestSession ? (
-            <div className="space-y-4 h-full flex flex-col">
-              <div className="flex flex-wrap items-center gap-3">
+        <StaggerItem><Panel title="Best session" subtitle="Peak operational window" variant="flat">          {bestSession ? (
+            <div className="flex h-full flex-col">
+              <div className="flex flex-wrap items-center gap-3 border-b border-abi-border/70 pb-4">
                 <Badge variant="success" className="inline-flex items-center gap-1">
                   <TrendingUp size={10} />
                   Top session
                 </Badge>
-                <Caption tone="secondary">
-                  {bestSession.raidCount} raids
-                </Caption>
+                <Caption tone="secondary">{new Date(bestSession.startTime).toLocaleDateString('en-US')}</Caption>
               </div>
-
-              <DisplayValue tone="positive">
-                {formatCurrency(bestSession.totalProfit)}
-              </DisplayValue>
-
-              <div className="grid grid-cols-2 gap-2 mt-auto">
-                <MiniStat label="Raids" value={String(bestSession.raidCount)} />
-                <MiniStat
-                  label="Extract rate"
-                  value={formatPercentage(bestSession.extractionRate)}
-                  tone="green"
+              <div className="py-4">
+                <MetaLabel className="block mb-2">Total profit</MetaLabel>
+                <DisplayValue tone={bestSession.totalProfit >= 0 ? 'positive' : 'negative'}>
+                  {formatCurrency(bestSession.totalProfit)}
+                </DisplayValue>
+              </div>
+              <div className="grid grid-cols-2 gap-px border border-abi-border bg-abi-border">
+                <DossierMetric label="Raids" value={String(bestSession.raidCount)} />
+                <DossierMetric label="Extract" value={formatPercentage(bestSession.extractionRate)} tone="positive" />
+                <DossierMetric label="Investment" value={formatCurrency(bestSession.totalInvestment)} />
+                <DossierMetric
+                  label="Average ROI"
+                  value={formatPercentage(bestSession.totalInvestment > 0
+                    ? (bestSession.totalProfit / bestSession.totalInvestment) * 100
+                    : 0)}
+                  tone={bestSession.totalProfit >= 0 ? 'positive' : 'negative'}
                 />
               </div>
+              <Caption tone="muted" className="mt-auto border-t border-abi-border/70 pt-4">
+                Session window: {formatDuration(Math.round((bestSession.endTime - bestSession.startTime) / 60000))}
+              </Caption>
             </div>
           ) : (
-            <p className="text-abi-text-muted text-sm font-mono">No sessions recorded</p>
+            <TacticalEmptyState
+              icon={<CalendarDays size={30} />}
+              title="Session data pending"
+              description="Complete connected raid operations to establish a session record."
+            />
           )}
-        </Panel>
-      </div>
+        </Panel></StaggerItem>
+        </StaggerContainer>
+      </section>
+      </RevealSection>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Panel title="Economy snapshot">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <EconomyRow
-              label="Lifetime profit"
-              value={formatCurrency(analytics.lifetimeProfit)}
-              color="green"
+      <RevealSection delay={0.08}>
+      <section className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-[0.85fr_1.5fr]">
+        <Panel title="Economy snapshot" subtitle="Resource allocation" variant="standard">          <div className="space-y-4">
+            <EconomyIndicator
+              label="Ammo allocation"
+              value={totalAmmoSpent}
+              total={totalAmmoSpent + totalConsumablesSpent}
+              tone="accent"
             />
-            <EconomyRow
-              label="Average raid net"
-              value={formatCurrency(analytics.lifetimeProfit / (analytics.totalRaids || 1))}
+            <EconomyIndicator
+              label="Consumables allocation"
+              value={totalConsumablesSpent}
+              total={totalAmmoSpent + totalConsumablesSpent}
+              tone="warning"
             />
-            <EconomyRow label="Ammo spending" value={formatCurrency(totalAmmoSpent)} />
-            <EconomyRow
-              label="Consumables spending"
-              value={formatCurrency(totalConsumablesSpent)}
-            />
-            <EconomyRow
-              label="Best today"
-              value={bestRaidToday ? formatCurrency(bestRaidToday.netProfit) : '$0'}
-              color="green"
-            />
-            <EconomyRow
-              label="Worst raid"
-              value={worstRaid ? formatCurrency(worstRaid.netProfit) : '$0'}
-              color="red"
-            />
+            <div className="grid grid-cols-2 gap-px border border-abi-border bg-abi-border">
+              <DossierMetric
+                label="Average net"
+                value={formatCurrency(analytics.lifetimeProfit / (analytics.totalRaids || 1))}
+                tone={analytics.lifetimeProfit >= 0 ? 'positive' : 'negative'}
+              />
+              <DossierMetric
+                label="Best today"
+                value={bestRaidToday ? formatCurrency(bestRaidToday.netProfit) : '$0'}
+                tone={bestRaidToday && bestRaidToday.netProfit >= 0 ? 'positive' : 'secondary'}
+              />
+              <DossierMetric
+                label="Average loot"
+                value={formatCurrency(analytics.averageLootValue)}
+              />
+              <DossierMetric
+                label="Worst operation"
+                value={worstRaid ? formatCurrency(worstRaid.netProfit) : '$0'}
+                tone={worstRaid && worstRaid.netProfit < 0 ? 'negative' : 'secondary'}
+              />
+            </div>
           </div>
         </Panel>
 
-        <Panel title="Recent raids">
+        <Panel title="Recent operations" subtitle="Latest field log" variant="standard">
           {recentRaids.length === 0 ? (
-            <EmptyState
-              icon={<MapPin size={28} />}
-              title="No raids logged"
-              description="Open Raids and log your first extraction to populate mission control."
+            <TacticalEmptyState
+              icon={<MapPin size={30} />}
+              title="Operation log is empty"
+              description="Log your first raid to populate mission control with field intelligence."
             />
           ) : (
-            <div className="relative pl-3 space-y-0 max-h-[320px] overflow-y-auto">
-              <div className="absolute left-[7px] top-2 bottom-2 w-px bg-abi-border" />
+            <div className="max-h-[340px] overflow-y-auto">
+              <StaggerList>
               {recentRaids.map((raid) => (
                 <button
                   key={raid.id}
                   type="button"
                   onClick={() => onRaidClick(raid.id)}
-                  className="relative w-full flex items-center justify-between py-2.5 pl-5 pr-2 text-left group hover:bg-abi-bg-hover/60 rounded-md transition-colors"
+                  className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-abi-border/70 px-1 py-3 text-left last:border-b-0 hover:bg-abi-bg-hover/60 transition-colors"
                 >
-                  <span
-                    className={`absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border ${
-                      raid.status === 'EXTRACTED'
-                        ? 'bg-abi-success border-abi-success'
-                        : 'bg-abi-danger border-abi-danger'
-                    }`}
-                  />
+                  <span className="grid h-8 w-8 place-items-center border border-abi-border bg-abi-bg">
+                    <Crosshair size={14} className={raid.status === 'EXTRACTED' ? 'text-positive' : 'text-negative'} />
+                  </span>
                   <div className="min-w-0">
-                    <MapName className="block uppercase truncate group-hover:text-accent transition-colors">
+                    <MapName className="block truncate group-hover:text-accent transition-colors">
                       {raid.map}
                     </MapName>
-                    <Caption className="block mt-[var(--space-value-meta)]">
-                      {new Date(raid.timestamp).toLocaleDateString('en-US')} · {raid.mode}
+                    <Caption className="mt-[var(--space-value-meta)] block">
+                      {raid.mode} · {new Date(raid.timestamp).toLocaleDateString('en-US')}
                     </Caption>
                   </div>
-                  <div className="text-right shrink-0 pl-3">
+                  <div className="min-w-[115px] text-right">
                     <DataValue tone={raid.netProfit >= 0 ? 'positive' : 'negative'}>
                       {formatCurrency(raid.netProfit)}
                     </DataValue>
-                    <Caption className="block mt-[var(--space-value-meta)] uppercase">
-                      {raid.status}
-                    </Caption>
+                    <span className="mt-[var(--space-value-meta)] flex justify-end">
+                      <StatusBadge status={raid.status} />
+                    </span>
                   </div>
                 </button>
               ))}
-            </div>
-          )}
+              </StaggerList>
+            </div>          )}
         </Panel>
-      </div>
+      </section>
+      </RevealSection>
+
+      <RevealSection delay={0.1}>
+      <section aria-labelledby="quick-recommendations" className="mt-4">        <Panel
+          id="quick-recommendations"
+          title="Quick recommendations"
+          subtitle="Deterministic guidance from field data"
+          variant="standard"
+        >
+          <RecommendationList
+            recommendations={recommendations}
+            hasEnoughHistory={raids.length >= MIN_OPERATIONAL_HISTORY}
+            insufficientDescription={`Log at least ${MIN_OPERATIONAL_HISTORY} operations to activate tactical guidance.`}
+          />
+        </Panel>
+      </section>
+      </RevealSection>
     </div>
   );
 }
-
 function Panel({
+  id,
   title,
+  subtitle,
   children,
   className = '',
+  variant = 'standard',
 }: {
+  id?: string;
   title: string;
+  subtitle?: string;
   children: ReactNode;
   className?: string;
+  variant?: 'primary' | 'standard' | 'flat';
 }) {
+  const surfaceClass = variant === 'flat'
+    ? 'overview-panel-flat'
+    : `hud-card overview-panel-static ${variant === 'primary' ? 'overview-panel-primary' : ''}`;
+  const paddingClass = variant === 'flat' ? 'p-4' : 'p-5';
+
   return (
-    <div className={`hud-card p-5 relative ${className}`}>
-      <div className="corner-accent top-left" />
-      <div className="corner-accent top-right" />
-      <div className="corner-accent bottom-left" />
-      <div className="corner-accent bottom-right" />
-      <h3 className="hud-heading mb-4">{title}</h3>
+    <div className={`${surfaceClass} ${paddingClass} relative ${className}`}>
+      {variant === 'primary' && (
+        <>
+          <div className="corner-accent top-left" />
+          <div className="corner-accent top-right" />
+          <div className="corner-accent bottom-left" />
+          <div className="corner-accent bottom-right" />
+        </>
+      )}
+      <div className="overview-panel-header mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
+        <h2 id={id} className="type-heading text-primary">{title}</h2>
+        {subtitle && <Caption tone="muted">{subtitle}</Caption>}
+      </div>
       {children}
     </div>
   );
 }
 
-function MiniStat({
+function StatusReadout({
   label,
   value,
-  tone = 'white',
+  tone = 'secondary',
 }: {
   label: string;
   value: string;
-  tone?: 'white' | 'green';
+  tone?: Tone;
 }) {
   return (
-    <div className="bg-abi-bg/50 rounded-md p-3 border border-abi-border/60">
-      <MetaLabel className="block mb-[var(--space-label-value)]">{label}</MetaLabel>
-      <DataValue tone={tone === 'green' ? 'positive' : 'primary'}>{value}</DataValue>
+    <div>
+      <MetaLabel className="block mb-1">{label}</MetaLabel>
+      <DataValue tone={tone}>{value}</DataValue>
     </div>
   );
 }
 
 function Sparkline({ values }: { values: number[] }) {
   if (values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const w = 120;
-  const h = 28;
-  const points = values
-    .map((v, i) => {
-      const x = (i / (values.length - 1)) * w;
-      const y = h - ((v - min) / range) * (h - 4) - 2;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
   const positive = values[values.length - 1] >= values[0];
-
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-7 mt-3 opacity-80" aria-hidden>
-      <polyline
-        fill="none"
-        stroke={positive ? 'var(--text-positive)' : 'var(--text-negative)'}
-        strokeWidth="1.5"
-        points={points}
-      />
-    </svg>
+    <div className="w-full h-7 mt-3 opacity-80">
+      <SparklineDraw values={values} width={120} height={28} positive={positive} className="w-full h-full" />
+    </div>
   );
 }
 
-function MetricCard({
+function SecondaryMetric({
+  value,
+  tone,
+  detail,
+}: {
+  value: number;
+  tone: Tone;
+  detail: string;
+}) {
+  return (
+    <div className="hud-card overview-panel-static h-full min-h-[156px] p-4 sm:p-5">
+      <div className="flex h-full flex-col justify-between">
+        <div>
+          <MetaLabel className="block mb-2">Average ROI</MetaLabel>
+          <DisplayValue size="l" tone={tone}>
+            <AnimatedStatValue value={value} format={formatPercentage} />
+          </DisplayValue>
+        </div>
+        <Caption tone="secondary" className="mt-4 block uppercase">{detail}</Caption>
+      </div>
+    </div>
+  );
+}
+
+function SupportingMetric({
   label,
   value,
-  subValue,
-  color = 'white',
-  accent = false,
-  spark,
+  detail,
 }: {
   label: string;
   value: string;
-  subValue?: string;
-  color?: 'white' | 'orange' | 'green' | 'red';
-  accent?: boolean;
-  spark?: number[];
+  detail: string;
 }) {
-  const tones: Record<'white' | 'orange' | 'green' | 'red', Tone> = {
-    white: 'primary',
-    orange: 'accent',
-    green: 'positive',
-    red: 'negative',
-  };
-
   return (
-    <div className={`hud-card p-4 relative ${accent ? 'border-abi-orange/35' : ''}`}>
+    <div className="overview-panel-flat px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <MetaLabel>{label}</MetaLabel>
+        <DataValue tone="primary" className="text-base">{value}</DataValue>
+      </div>
+      <Caption tone="muted" className="mt-1.5 block uppercase">{detail}</Caption>
+    </div>
+  );
+}
+
+function PrimaryMetric({
+  value,
+  tone,
+  spark,
+}: {
+  value: number;
+  tone: Tone;
+  spark: number[];
+}) {
+  return (
+    <div className="hud-card overview-panel-static overview-panel-primary min-h-[156px] p-4 sm:p-5 relative overflow-hidden border-abi-orange/35">
       <div className="corner-accent top-left" />
       <div className="corner-accent top-right" />
       <div className="corner-accent bottom-left" />
       <div className="corner-accent bottom-right" />
-
-      <MetaLabel className="block mb-[var(--space-label-value)]">{label}</MetaLabel>
-      <DisplayValue tone={tones[color]}>{value}</DisplayValue>
-      {subValue && (
-        <Caption className="block mt-[var(--space-value-meta)] uppercase">
-          {subValue}
-        </Caption>
-      )}
-      {spark && spark.length > 1 && <Sparkline values={spark} />}
+      <div className="flex h-full flex-col justify-between">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <MetaLabel tone="accent" className="block mb-2">Lifetime profit</MetaLabel>
+            <DisplayValue size="xl" tone={tone}>
+              <AnimatedStatValue
+                value={formatCurrency(value)}
+                toneClass={tone === 'positive' ? 'text-positive' : tone === 'negative' ? 'text-negative' : undefined}
+              />
+            </DisplayValue>
+          </div>
+          <TrendingUp size={17} className="text-accent shrink-0" />
+        </div>
+        <div>
+          <Caption tone="secondary">Cumulative result across all recorded operations</Caption>
+          {spark.length > 1 && <Sparkline values={spark} />}
+        </div>
+      </div>
     </div>
   );
 }
 
-function EconomyRow({
+function BriefBand({
+  icon,
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="min-w-0 border-b border-abi-border/60 px-0 py-4 first:pt-0 last:border-b-0 last:pb-0 md:border-b-0 md:px-5 md:py-0 md:first:pl-0 md:last:pr-0">
+      <div className="mb-4 flex items-center gap-2 text-accent">
+        {icon}
+        <MetaLabel tone="accent">{label}</MetaLabel>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-1 xl:grid-cols-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function BriefReadout({
   label,
   value,
-  color = 'white',
+  detail,
+  tone = 'primary',
 }: {
   label: string;
   value: string;
-  color?: 'white' | 'green' | 'red';
+  detail: string;
+  tone?: Tone;
 }) {
-  const tones: Record<'white' | 'green' | 'red', Tone> = {
-    white: 'primary',
-    green: 'positive',
-    red: 'negative',
-  };
-
   return (
-    <div className="flex items-center justify-between gap-3 p-3 rounded-md bg-abi-bg/40 border border-abi-border/50">
-      <MetaLabel>{label}</MetaLabel>
-      <DataValue tone={tones[color]}>{value}</DataValue>
+    <div className="min-w-0">
+      <MetaLabel className="block mb-1.5">{label}</MetaLabel>
+      <DataValue tone={tone} className="block truncate">{value}</DataValue>
+      <Caption tone="muted" className="mt-1 block truncate">{detail}</Caption>
     </div>
   );
 }
+
+function DossierMetric({
+  label,
+  value,
+  tone = 'primary',
+}: {
+  label: string;
+  value: string;
+  tone?: Tone;
+}) {
+  return (
+    <div className="bg-abi-bg-card p-3">
+      <MetaLabel className="block mb-2">{label}</MetaLabel>
+      <DataValue tone={tone}>{value}</DataValue>
+    </div>
+  );
+}
+
+function EconomyIndicator({
+  label,
+  value,
+  total,
+  tone,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  tone: 'accent' | 'warning';
+}) {
+  const width = total > 0 ? Math.max((value / total) * 100, 4) : 0;
+  const barColor = tone === 'accent' ? 'bg-abi-orange' : 'bg-abi-warning';
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <MetaLabel>{label}</MetaLabel>
+        <DataValue>{formatCurrency(value)}</DataValue>
+      </div>
+      <div className="mt-2 h-px w-full bg-abi-border relative overflow-hidden">
+        <AnimatedBar
+          widthPercent={width}
+          className={`absolute inset-y-0 left-0 h-px ${barColor}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TacticalEmptyState({
+  icon,
+  title,
+  description,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="grid min-h-[230px] place-items-center border border-dashed border-abi-border bg-abi-bg/35 p-6 text-center">
+      <div className="max-w-sm">
+        <AnimatedEmptyStateIcon className="mx-auto mb-4 grid h-12 w-12 place-items-center border border-abi-orange/35 bg-abi-orange/10 text-accent">
+          {icon}
+        </AnimatedEmptyStateIcon>        <h3 className="type-heading text-primary">{title}</h3>
+        <p className="mt-2 type-caption text-secondary">{description}</p>
+      </div>
+    </div>
+  );
+}
+

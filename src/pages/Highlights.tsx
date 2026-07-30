@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Badge, Button, Caption, DataValue, DisplayValue, EmptyState, MapName, MetaLabel, PageHeader, Select } from '../components/ui';
-import { useHighlights, useRaids } from '../hooks/useStorageQuery';
+import { motion } from 'motion/react';
+import { Badge, Button, Caption, DataValue, DisplayValue, EmptyState, MapName, MetaLabel, PageHeader, RoiViewToggle, Select } from '../components/ui';
+import { useHighlights, useRoiRaids } from '../hooks/useStorageQuery';
 import { formatCurrency, formatDateTime } from '../utils/economy';
 import { Eye, Star, Heart } from 'lucide-react';
 import type { Highlight, Raid } from '../types';
 import HighlightDetailModal from '../components/highlights/HighlightDetailModal';
+import { AnimatedStatValue, RevealSection, StaggerContainer, StaggerItem } from '../components/motion';
 
 interface HighlightsProps {
   onRaidClick?: (raidId: string) => void;
@@ -12,7 +14,7 @@ interface HighlightsProps {
 
 export function Highlights(_: HighlightsProps) {
   const highlights = useHighlights();
-  const raids = useRaids();
+  const raids = useRoiRaids();
   const [sortMode, setSortMode] = useState<'newest' | 'oldest' | 'profit'>('newest');
   const [showFavorites, setShowFavorites] = useState(false);
   const [detailRaidId, setDetailRaidId] = useState<string | null>(null);
@@ -38,38 +40,43 @@ export function Highlights(_: HighlightsProps) {
   }, [highlights, raidMap, sortMode, showFavorites]);
 
   return (
-    <div className="space-y-6 page-enter">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Combat history"
         title="Highlights"
         meta={`${highlights.length} archived`}
         actions={
-          <Button variant="secondary" size="sm" onClick={() => setShowFavorites(!showFavorites)}>
-            <Heart size={14} className="mr-2" /> Favorites
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <RoiViewToggle />
+            <Button variant="secondary" size="sm" onClick={() => setShowFavorites(!showFavorites)}>
+              <Heart size={14} className="mr-2" /> Favorites
+            </Button>
+          </div>
         }
       />
 
+      <RevealSection immediate>
       <div className="hud-card p-4 grid grid-cols-2 md:grid-cols-3 gap-4">
         <div>
           <MetaLabel className="block mb-[var(--space-label-value)]">Total profit</MetaLabel>
           <DisplayValue tone="positive">
-            ${formatCurrency(raids.reduce((s, r) => s + r.netProfit, 0))}
+            <AnimatedStatValue value={`$${formatCurrency(raids.reduce((s, r) => s + r.netProfit, 0))}`} />
           </DisplayValue>
         </div>
         <div>
           <MetaLabel className="block mb-[var(--space-label-value)]">Total loot</MetaLabel>
           <DisplayValue tone="positive">
-            ${formatCurrency(raids.reduce((s, r) => s + r.lootValue, 0))}
+            <AnimatedStatValue value={`$${formatCurrency(raids.reduce((s, r) => s + r.lootValue, 0))}`} />
           </DisplayValue>
         </div>
         <div>
           <MetaLabel className="block mb-[var(--space-label-value)]">Total kills</MetaLabel>
           <DataValue tone="accent">
-            {raids.reduce((s, r) => s + (r.kills || 0), 0)}
+            <AnimatedStatValue value={raids.reduce((s, r) => s + (r.kills || 0), 0)} />
           </DataValue>
         </div>
       </div>
+      </RevealSection>
 
       {/* Main Section */}
       <div className="flex items-center justify-between">
@@ -87,10 +94,15 @@ export function Highlights(_: HighlightsProps) {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <StaggerContainer className="space-y-3">
         {filteredHighlights.length > 0 ? (
           filteredHighlights.map(({ highlight, raid }) => (
-            <div key={highlight.raidId} className="hud-card rounded-xl p-2 flex items-center justify-between hover-glow-orange hover:scale-[1.01]">
+            <StaggerItem key={highlight.raidId}>
+            <motion.div
+              className="hud-card rounded-xl p-2 flex items-center justify-between hover-glow-orange"
+              whileHover={{ y: -2 }}
+              transition={{ duration: 0.2 }}
+            >
               <div className="flex items-center gap-3">
                 <div className="hud-icon" aria-hidden>
                   {raid.status === 'EXTRACTED' ? (
@@ -133,12 +145,13 @@ export function Highlights(_: HighlightsProps) {
                   <Eye className="text-abi-orange" />
                 </button>
               </div>
-            </div>
+            </motion.div>
+            </StaggerItem>
           ))
         ) : (
           <EmptyState icon={<Star size={48} />} title="No highlights" description={showFavorites ? "No favorites yet" : "No highlight archive entries"} />
         )}
-      </div>
+      </StaggerContainer>
 
       {detailRaidId && (
         <HighlightDetailModal raidId={detailRaidId} onClose={() => setDetailRaidId(null)} />

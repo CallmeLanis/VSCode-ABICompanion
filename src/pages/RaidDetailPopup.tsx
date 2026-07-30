@@ -1,7 +1,7 @@
-import { Modal, Badge, Divider } from '../components/ui';
-import { formatCurrency, formatDateTime, formatDuration, formatPercentage } from '../utils/economy';
-import { getRaidById } from '../utils/storage';
-import { useStorageQuery } from '../hooks/useStorageQuery';
+import { useMemo } from 'react';
+import { Modal, Badge, Divider, RoiViewToggle, StatusBadge } from '../components/ui';
+import { applyRoiMode, formatCurrency, formatDateTime, formatDuration, formatPercentage } from '../utils/economy';
+import { useRaids, useSettings } from '../hooks/useStorageQuery';
 import { STATUS_ICONS, RARITY_COLORS } from '../data/constants';
 import { Skull, Package, Clock, Target, DollarSign } from 'lucide-react';
 
@@ -12,7 +12,12 @@ interface RaidDetailPopupProps {
 }
 
 export function RaidDetailPopup({ raidId, isOpen, onClose }: RaidDetailPopupProps) {
-  const raid = useStorageQuery('raids', () => (raidId ? getRaidById(raidId) ?? null : null));
+  const raids = useRaids();
+  const { roiMode } = useSettings();
+  const raid = useMemo(() => {
+    const storedRaid = raidId ? raids.find((item) => item.id === raidId) : null;
+    return storedRaid ? applyRoiMode(storedRaid, roiMode) : null;
+  }, [raidId, raids, roiMode]);
 
   if (!raid) return null;
 
@@ -22,15 +27,11 @@ export function RaidDetailPopup({ raidId, isOpen, onClose }: RaidDetailPopupProp
     <Modal isOpen={isOpen} onClose={onClose} title="Raid Details" size="lg">
       <div className="space-y-6">
         {/* Header */}
+        <RoiViewToggle className="justify-end" />
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Badge
-                variant={raid.status === 'EXTRACTED' ? 'success' : raid.status === 'DIED' ? 'danger' : 'warning'}
-                size="sm"
-              >
-                {statusIcon} {raid.status}
-              </Badge>
+              <StatusBadge status={raid.status} icon={statusIcon} />
               <Badge variant="default" size="sm">{raid.map}</Badge>
               <Badge variant="default" size="sm">{raid.mode}</Badge>
             </div>
@@ -107,10 +108,19 @@ export function RaidDetailPopup({ raidId, isOpen, onClose }: RaidDetailPopupProp
               </div>
             )}
             {/* Gear */}
-            {raid.gearValue > 0 && (
+            {(raid.gearRescue?.gearValue ?? raid.gearValue) > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-abi-text-muted">Gear Value</span>
-                <span className="text-abi-text">${formatCurrency(raid.gearValue)}</span>
+                <span className="text-abi-text-muted">Gear brought</span>
+                <span className="text-abi-text">
+                  ${formatCurrency(raid.gearRescue?.gearValue ?? raid.gearValue)}
+                </span>
+              </div>
+            )}
+            {/* Full loadout lost with no rescue attempt */}
+            {!raid.gearRescue && raid.status === 'DIED' && raid.gearValue > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-abi-text-muted">Gear Loss</span>
+                <span className="text-red-400">${formatCurrency(raid.gearValue)}</span>
               </div>
             )}
             {/* Gear Rescue */}

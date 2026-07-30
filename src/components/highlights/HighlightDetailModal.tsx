@@ -1,21 +1,26 @@
 import { getRaidById } from '../../utils/storage';
-import { formatCurrency, formatDateTime } from '../../utils/economy';
+import { applyRoiMode, formatCurrency, formatDateTime } from '../../utils/economy';
 import { X } from 'lucide-react';
-import { Button } from '../ui';
-import type { Raid, LootItem } from '../../types';
+import { Button, RoiViewToggle } from '../ui';
+import type { LootItem } from '../../types';
+import { useSettings } from '../../hooks/useStorageQuery';
 
 export default function HighlightDetailModal({ raidId, onClose }: { raidId: string; onClose: () => void }) {
-  const raid: Raid | undefined = getRaidById(raidId);
-  if (!raid) return null;
+  const { roiMode } = useSettings();
+  const storedRaid = getRaidById(raidId);
+  if (!storedRaid) return null;
+  const raid = applyRoiMode(storedRaid, roiMode);
+  const displayStatus = raid.status === 'FLED' ? 'DIED' : raid.status;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative w-[900px] max-w-full bg-abi-bg border border-abi-border rounded-xl p-6 shadow-lg hud-modal">
+        <RoiViewToggle className="mb-4 justify-end" />
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="font-orbitron text-2xl text-abi-text">{raid.map} — {formatDateTime(raid.timestamp || Date.now())}</h3>
-            <p className="text-sm text-abi-text-dim mt-1">Status: <span className={raid.status === 'EXTRACTED' ? 'text-green-400' : 'text-red-500'}>{raid.status}</span></p>
+            <p className="text-sm text-abi-text-dim mt-1">Status: <span className={displayStatus === 'EXTRACTED' ? 'text-green-400' : 'text-red-500'}>{displayStatus}</span></p>
           </div>
           <button onClick={onClose} aria-label="Close" className="p-2 rounded-md hover:bg-white/5">
             <X />

@@ -1,13 +1,20 @@
 import { useMemo, useState } from 'react';
+import { Package, Percent, TrendingUp, Wallet } from 'lucide-react';
 import {
   calculateProfitCurve,
   calculateSpendBreakdown,
   calculateAmmoUsage,
   calculateConsumableUsage,
+  calculateFinancialIntelligence,
 } from '../utils/analytics';
-import { useRaids } from '../hooks/useStorageQuery';
-import { formatCurrency, formatNumber } from '../utils/mockData';
-import { PageHeader } from '../components/ui/PageHeader';
+import { generateEconomyRecommendations, MIN_OPERATIONAL_HISTORY } from '../utils/intelligence';
+import { useRoiRaids } from '../hooks/useStorageQuery';
+import { formatCurrency, formatNumber, formatPercentage } from '../utils/mockData';
+import { Caption, DataValue, MapName, MetaLabel, PageHeader, RoiViewToggle, StatCard } from '../components/ui';
+import { RecommendationList } from '../components/intelligence/RecommendationCard';
+import { AnimatedPath, AnimatedBar, RevealSection, StaggerContainer, StaggerItem } from '../components/motion';
+import { motion } from 'motion/react';
+import type { Raid } from '../types';
 
 type Range = '7d' | '30d' | 'all';
 
@@ -34,7 +41,7 @@ function rangeLabel(range: Range): string {
 }
 
 export function Economy() {
-  const raids = useRaids();
+  const raids = useRoiRaids();
   const [range, setRange] = useState<Range>('all');
 
   const rangedRaids = useMemo(() => {
@@ -47,6 +54,8 @@ export function Economy() {
   const spendBreakdown = useMemo(() => calculateSpendBreakdown(rangedRaids), [rangedRaids]);
   const ammoUsage = useMemo(() => calculateAmmoUsage(rangedRaids, 8), [rangedRaids]);
   const consumableUsage = useMemo(() => calculateConsumableUsage(rangedRaids, 12), [rangedRaids]);
+  const financial = useMemo(() => calculateFinancialIntelligence(rangedRaids), [rangedRaids]);
+  const recommendations = useMemo(() => generateEconomyRecommendations(rangedRaids), [rangedRaids]);
 
   const { values: cumulativePL, minY, maxY, yAxisTicks, labels } = profitCurve;
   const { segments: spendSegments, total: spendTotal } = spendBreakdown;
@@ -144,27 +153,62 @@ export function Economy() {
   const { toX, toY, linePath, areaPath, peak, low, xLabelIndices, zeroY } = chartGeometry;
 
   return (
-    <div className="space-y-6 page-enter">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Economy intelligence"
         title="Financial overview"
         meta={`${formatNumber(rangedRaids.length)} raids · ${rangeLabel(range)}`}
         actions={
-          <div className="filter-tabs">
-            {RANGE_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`filter-tab ${range === option.id ? 'active' : ''}`}
-                onClick={() => setRange(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <RoiViewToggle />
+            <div className="filter-tabs">
+              {RANGE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`filter-tab ${range === option.id ? 'active' : ''}`}
+                  onClick={() => setRange(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
 
+      <RevealSection immediate delay={0.04}>
+      <section aria-label="Financial intelligence" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StaggerContainer className="contents xl:contents" immediate>
+          <StaggerItem><StatCard
+          label="Loot secured"
+          value={formatCurrency(financial.totalLoot)}
+          subValue={`${formatNumber(rangedRaids.length)} operations`}
+          icon={<Package size={18} />}
+        /></StaggerItem>
+          <StaggerItem><StatCard
+          label="Total invested"
+          value={formatCurrency(financial.totalInvestment)}
+          subValue="Ammo, consumables, gear loss"
+          icon={<Wallet size={18} />}
+        /></StaggerItem>
+          <StaggerItem><StatCard
+          label="Net result"
+          value={formatCurrency(financial.netProfit)}
+          subValue={`${formatPercentage(financial.profitMargin)} profit margin`}
+          icon={<TrendingUp size={18} />}
+        /></StaggerItem>
+          <StaggerItem><StatCard
+          label="Avg net per raid"
+          value={formatCurrency(financial.averageNetPerRaid)}
+          subValue={`${formatPercentage(financial.profitableShare)} of raids profitable`}
+          icon={<Percent size={18} />}
+        /></StaggerItem>
+        </StaggerContainer>
+      </section>
+      </RevealSection>
+
+      <RevealSection delay={0.06}>
       <div className="grid grid-cols-1 xl:grid-cols-[60%_40%] gap-4">
         {/* Cumulative P/L */}
         <div className="hud-card rounded-xl p-5 relative">
@@ -245,12 +289,17 @@ export function Economy() {
 
                 {linePath && (
                   <>
-                    <path d={areaPath} fill="url(#plGradient)" opacity="0.85" />
-                    <path
+                    <motion.path
+                      d={areaPath}
+                      fill="url(#plGradient)"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.85 }}
+                      transition={{ duration: 0.8, delay: 0.5 }}
+                    />
+                    <AnimatedPath
                       d={linePath}
-                      fill="none"
                       stroke="var(--text-accent)"
-                      strokeWidth="3"
+                      strokeWidth={3}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
@@ -475,10 +524,11 @@ export function Economy() {
                         {formatCurrency(row.total)}
                       </span>
                     </div>
-                    <div className="h-2 w-full rounded-sm bg-abi-bg overflow-hidden border border-abi-border">
-                      <div
-                        className="h-full rounded-sm bg-abi-orange transition-[width] duration-300"
-                        style={{ width: `${widthPct}%` }}
+                    <div className="h-2 w-full rounded-sm bg-abi-bg overflow-hidden border border-abi-border relative">
+                      <AnimatedBar
+                        widthPercent={widthPct}
+                        className="absolute inset-y-0 left-0 h-full rounded-sm bg-abi-orange"
+                        delay={0.05}
                       />
                     </div>
                   </div>
@@ -548,6 +598,137 @@ export function Economy() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ROI analysis */}
+      <div className="hud-card rounded-xl p-5 relative">
+        <div className="corner-accent top-left" />
+        <div className="corner-accent top-right" />
+        <div className="corner-accent bottom-left" />
+        <div className="corner-accent bottom-right" />
+
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <p className="hud-label mb-2">ROI ANALYSIS</p>
+            <h2 className="text-xl font-black text-abi-text font-orbitron">Return efficiency</h2>
+          </div>
+          <span className="hud-label mt-1 shrink-0">{rangeLabel(range)}</span>
+        </div>
+
+        {rangedRaids.length === 0 ? (
+          <div className="flex h-40 items-center justify-center border border-dashed border-abi-border rounded-sm">
+            <p className="hud-label">No raid data in this range</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.2fr]">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-px border border-abi-border bg-abi-border">
+                <div className="bg-abi-bg-card p-3">
+                  <MetaLabel className="mb-[var(--space-label-value)] block">Average ROI</MetaLabel>
+                  <DataValue tone={financial.averageROI >= 0 ? 'positive' : 'negative'}>
+                    {formatPercentage(financial.averageROI)}
+                  </DataValue>
+                </div>
+                <div className="bg-abi-bg-card p-3">
+                  <MetaLabel className="mb-[var(--space-label-value)] block">Median ROI</MetaLabel>
+                  <DataValue tone={financial.medianROI >= 0 ? 'positive' : 'negative'}>
+                    {formatPercentage(financial.medianROI)}
+                  </DataValue>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <MetaLabel>Profitable operations</MetaLabel>
+                  <DataValue tone={financial.profitableShare >= 50 ? 'positive' : 'warning'}>
+                    {formatPercentage(financial.profitableShare)}
+                  </DataValue>
+                </div>
+                <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-sm border border-abi-border bg-abi-bg">
+                  <AnimatedBar
+                    widthPercent={financial.profitableShare}
+                    className="h-full bg-abi-success"
+                    mode="flex"
+                  />
+                  <AnimatedBar
+                    widthPercent={100 - financial.profitableShare}
+                    className="h-full bg-abi-danger/60"
+                    delay={0.08}
+                    mode="flex"
+                  />
+                </div>
+                <div className="mt-1 flex justify-between">
+                  <Caption tone="muted">In profit</Caption>
+                  <Caption tone="muted">At loss</Caption>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {financial.bestRaid && (
+                <RoiExtremeRow label="Best operation" raid={financial.bestRaid} tone="positive" />
+              )}
+              {financial.worstRaid && financial.worstRaid.id !== financial.bestRaid?.id && (
+                <RoiExtremeRow label="Worst operation" raid={financial.worstRaid} tone="negative" />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      </RevealSection>
+
+      <RevealSection delay={0.1}>
+      {/* Recommendation panel */}
+      <div className="hud-card rounded-xl p-5 relative">
+        <div className="corner-accent top-left" />
+        <div className="corner-accent top-right" />
+        <div className="corner-accent bottom-left" />
+        <div className="corner-accent bottom-right" />
+
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <p className="hud-label mb-2">RECOMMENDATION PANEL</p>
+            <h2 className="text-xl font-black text-abi-text font-orbitron">Financial guidance</h2>
+          </div>
+          <span className="hud-label mt-1 shrink-0">{rangeLabel(range)}</span>
+        </div>
+
+        <RecommendationList
+          recommendations={recommendations}
+          hasEnoughHistory={rangedRaids.length >= MIN_OPERATIONAL_HISTORY}
+          insufficientDescription={`At least ${MIN_OPERATIONAL_HISTORY} operations in this range are required for financial guidance.`}
+        />
+      </div>
+      </RevealSection>
+    </div>
+  );
+}
+
+function RoiExtremeRow({
+  label,
+  raid,
+  tone,
+}: {
+  label: string;
+  raid: Raid;
+  tone: 'positive' | 'negative';
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 border border-abi-border bg-abi-bg px-4 py-3">
+      <div className="min-w-0">
+        <MetaLabel className="mb-[var(--space-label-value)] block">{label}</MetaLabel>
+        <MapName className="block truncate">{raid.map}</MapName>
+        <Caption tone="muted" className="mt-[var(--space-value-meta)] block">
+          {raid.mode} · {new Date(raid.timestamp).toLocaleDateString('en-US')}
+        </Caption>
+      </div>
+      <div className="shrink-0 text-right">
+        <DataValue tone={tone} className="block">
+          {formatCurrency(raid.netProfit)}
+        </DataValue>
+        <Caption tone={tone} className="mt-[var(--space-value-meta)] block">
+          {formatPercentage(raid.roi)} ROI
+        </Caption>
       </div>
     </div>
   );

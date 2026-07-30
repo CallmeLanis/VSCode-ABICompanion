@@ -3,13 +3,16 @@ import { Card, Button, NumberInput, ConfirmModal, PageHeader } from '../componen
 import { MergeDataBlock } from '../components/MergeDataBlock';
 import { getStoredSettings, saveSettings, clearAllStorage } from '../utils/storage';
 import { formatPercentage } from '../utils/economy';
-import { Trash2, Info, Download } from 'lucide-react';
+import { Trash2, Info, Download, Database } from 'lucide-react';
 import type { AppSettings } from '../types';
+import { RevealSection, StaggerContainer, StaggerItem } from '../components/motion';
+import { loadDemoData } from '../utils/mockData';
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<Partial<AppSettings>>(getStoredSettings);
   const [hasChanges, setHasChanges] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showDemoConfirm, setShowDemoConfirm] = useState(false);
 
   useEffect(() => {
     const original = getStoredSettings();
@@ -30,19 +33,47 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl page-enter">
+    <div className="space-y-6 max-w-2xl">
       <PageHeader
         eyebrow="Configuration"
         title="Settings"
         meta="Local preferences and data controls"
       />
 
+      <StaggerContainer className="space-y-6">
+      <StaggerItem>
+      <RevealSection>
       {/* Economy Settings */}
       <Card className="p-4">
         <h3 className="font-mono text-[10px] font-semibold text-abi-text-muted uppercase tracking-[0.14em] mb-4">
           Economy
         </h3>
         <div className="space-y-4">
+          <div>
+            <p className="type-label text-secondary mb-2">Default ROI view</p>
+            <div className="filter-tabs" role="group" aria-label="Default ROI calculation view">
+              <button
+                type="button"
+                className={`filter-tab ${(settings.roiMode ?? 'operational') === 'operational' ? 'active' : ''}`}
+                aria-pressed={(settings.roiMode ?? 'operational') === 'operational'}
+                onClick={() => setSettings({ ...settings, roiMode: 'operational' })}
+              >
+                Run Cost
+              </button>
+              <button
+                type="button"
+                className={`filter-tab ${settings.roiMode === 'economic' ? 'active' : ''}`}
+                aria-pressed={settings.roiMode === 'economic'}
+                onClick={() => setSettings({ ...settings, roiMode: 'economic' })}
+              >
+                Loadout
+              </button>
+            </div>
+            <p className="text-xs text-abi-text-dim mt-1.5">
+              Run Cost measures ROI against ammo and consumables. Loadout also counts the gear
+              brought into the operation. Profit figures always stay on realized cash flow.
+            </p>
+          </div>
           <div>
             <NumberInput
               label="Global Market Tax Rate (%)"
@@ -59,7 +90,10 @@ export function SettingsPage() {
           </div>
         </div>
       </Card>
+      </RevealSection>
+      </StaggerItem>
 
+      <StaggerItem><RevealSection delay={0.04}>
       {/* Session Settings */}
       <Card className="p-4">
         <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
@@ -79,7 +113,9 @@ export function SettingsPage() {
           </p>
         </div>
       </Card>
+      </RevealSection></StaggerItem>
 
+      <StaggerItem><RevealSection delay={0.06}>
       {/* Highlight Settings */}
       <Card className="p-4">
         <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4">
@@ -110,12 +146,16 @@ export function SettingsPage() {
           </p>
         </div>
       </Card>
+      </RevealSection></StaggerItem>
 
+      <StaggerItem><RevealSection delay={0.08}>
       {/* Data Import & Merge */}
       <Card className="p-4">
         <MergeDataBlock onMergeComplete={() => window.location.reload()} />
       </Card>
+      </RevealSection></StaggerItem>
 
+      <StaggerItem><RevealSection delay={0.1}>
       {/* Data Management */}
       <Card className="p-4">
         <h3 className="text-sm font-semibold text-abi-text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -123,6 +163,14 @@ export function SettingsPage() {
           Data Management
         </h3>
         <div className="space-y-4">
+          <div className="p-3 bg-abi-bg border border-abi-border rounded-lg">
+            <p className="text-sm text-secondary mb-3">
+              Load 48 tactical demo raids with mixed maps, modes, extract/KIA outcomes, loot names for search, and derived sessions/highlights.
+            </p>
+            <Button variant="secondary" onClick={() => setShowDemoConfirm(true)}>
+              <Database size={16} className="mr-1" /> Load Demo Data
+            </Button>
+          </div>
           <div className="p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
             <p className="text-sm text-yellow-400 flex items-start gap-2">
               <Info size={16} className="mt-0.5 shrink-0" />
@@ -140,6 +188,8 @@ export function SettingsPage() {
           </Button>
         </div>
       </Card>
+      </RevealSection></StaggerItem>
+      </StaggerContainer>
 
       {/* Save Bar */}
       {hasChanges && (
@@ -156,6 +206,20 @@ export function SettingsPage() {
 
       {/* Confirm Modal */}
       <ConfirmModal
+        isOpen={showDemoConfirm}
+        onClose={() => setShowDemoConfirm(false)}
+        onConfirm={() => {
+          loadDemoData();
+          setShowDemoConfirm(false);
+          window.location.reload();
+        }}
+        title="Load Demo Data"
+        message="This replaces your current raids, sessions, and highlights with 48 demo operations for testing. Your LootDB and settings are kept."
+        confirmText="Load Demo Data"
+        variant="primary"
+      />
+
+      <ConfirmModal
         isOpen={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
         onConfirm={() => {
@@ -166,6 +230,7 @@ export function SettingsPage() {
         message="Are you sure you want to delete all your data? This action cannot be undone."
         confirmText="Delete Everything"
         variant="danger"
+        shake
       />
     </div>
   );

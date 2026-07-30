@@ -1,4 +1,5 @@
 import React from 'react';
+import { AnimatedStatValue } from '../motion/CountUpValue';
 
 interface CardProps {
   children: React.ReactNode;
@@ -56,6 +57,8 @@ interface StatCardProps {
   className?: string;
   onClick?: () => void;
   glow?: boolean;
+  /** Count-up animation for numeric KPI values */
+  animate?: boolean;
 }
 
 export function StatCard({
@@ -68,6 +71,7 @@ export function StatCard({
   className = '',
   onClick,
   glow = false,
+  animate = true,
 }: StatCardProps) {
   const trendColors = {
     up: 'text-positive',
@@ -88,7 +92,14 @@ export function StatCard({
             {label}
           </p>
           <p className="type-display-l text-primary">
-            {value}
+            {animate ? (
+              <AnimatedStatValue
+                value={value}
+                toneClass={trend ? trendColors[trend] : undefined}
+              />
+            ) : (
+              value
+            )}
           </p>
           {subValue && (
             <p className="type-caption text-muted mt-[var(--space-value-meta)]">{subValue}</p>

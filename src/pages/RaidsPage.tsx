@@ -1,26 +1,24 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, SortDesc, Clock, Target, Skull, Trash2, Eye, Swords, Package, Pill, Shield } from 'lucide-react';
-import { deleteRaid, addRaid, addHighlight, getSessionId, getStoredSettings } from '../utils/storage';
-import { useRaids } from '../hooks/useStorageQuery';
+import { SortDesc, Clock, Target, Skull, Trash2, Eye } from 'lucide-react';
+import { deleteRaid } from '../utils/storage';
+import { useRoiRaids } from '../hooks/useStorageQuery';
 import { RaidDetailPopup } from './RaidDetailPopup';
 import { formatCurrency, formatDateTime, formatPercentage } from '../utils/economy';
-import { STATUS_ICONS, MAPS, GAME_MODES, AMMO_CALIBERS, CONSUMABLES } from '../data/constants';
-import { generateId } from '../utils/storage';
-import { calculateRaidEconomy, calculateGearRescue } from '../utils/economy';
-import { Caption, DataValue, EmptyState, MapName, PageHeader, StatusBadge } from '../components/ui';
-import type { Raid, RaidStatus, AmmoEntry, ConsumableEntry, GearRescueData } from '../types';
+import { STATUS_ICONS } from '../data/constants';
+import { Caption, DataValue, EmptyState, MapName, PageHeader, RoiViewToggle, StatusBadge } from '../components/ui';
+import { EnterRaidTrigger } from '../components/debrief/MissionDebrief';
+import type { Raid, RaidStatus } from '../types';
 
 type SortField = 'timestamp' | 'netProfit' | 'roi' | 'kills';
 type FilterStatus = 'all' | RaidStatus;
 type Density = 'compact' | 'economy' | 'combat';
 
 export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => void }) {
-  const raids = useRaids();
+  const raids = useRoiRaids();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(600);
 
   // Filters
-  const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [sortField, setSortField] = useState<SortField>('timestamp');
   const [density, setDensity] = useState<Density>('economy');
@@ -45,16 +43,6 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
   const filteredRaids = useMemo(() => {
     let result = [...raids];
 
-    // Search
-    if (search) {
-      const searchLower = search.toLowerCase();
-      result = result.filter(raid =>
-        raid.map.toLowerCase().includes(searchLower) ||
-        raid.mode.toLowerCase().includes(searchLower) ||
-        raid.loot.some(l => l.name.toLowerCase().includes(searchLower))
-      );
-    }
-
     // Status filter
     if (statusFilter !== 'all') {
       result = result.filter(raid => raid.status === statusFilter);
@@ -77,7 +65,7 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
     });
 
     return result;
-  }, [raids, search, statusFilter, sortField]);
+  }, [raids, statusFilter, sortField]);
 
   // Cycle through sort fields
   const handleSortClick = () => {
@@ -113,9 +101,18 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
     }
   };
 
+  const [highlightRaidId, setHighlightRaidId] = useState<string | null>(null);
+  const [debriefOpen, setDebriefOpen] = useState(false);
+
+  const handleRaidLogged = (raidId: string) => {
+    setHighlightRaidId(raidId);
+    window.setTimeout(() => setHighlightRaidId(null), 3000);
+  };
+
   const renderRaidRow = (raid: Raid) => {
     const statusIcon = STATUS_ICONS[raid.status];
     const isHighlight = raid.isHighlight;
+    const isNew = highlightRaidId === raid.id;
 
     return (
       <div
@@ -124,6 +121,7 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
         className={`
           raids-table-row
           ${isHighlight ? 'bg-abi-orange/5 border-l-2 border-l-abi-orange' : ''}
+          ${isNew ? 'animate-row-highlight' : ''}
         `}
       >
         {/* Status */}
@@ -214,21 +212,22 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
   }, [filteredRaids]);
 
   return (
-    <div className="page-enter space-y-4">
+    <div className="space-y-4">
       <PageHeader
         eyebrow="Field operations"
         title="Raids"
         meta={`${raids.length} logged · ${filteredRaids.length} shown`}
-        actions={<span className="hud-chip text-abi-orange">{raids.length} logged</span>}
+        actions={<RoiViewToggle />}
       />
 
-      <div className="raids-split-layout" ref={containerRef}>
-      {/* LEFT COLUMN: Log Raid Block (25%) */}
-      <div className="raids-log-block">
-        <LogRaidBlock />
-      </div>
+      <EnterRaidTrigger
+        isOpen={debriefOpen}
+        onOpen={() => setDebriefOpen(true)}
+        onClose={() => setDebriefOpen(false)}
+        onRaidLogged={handleRaidLogged}
+      />
 
-      {/* RIGHT COLUMN: Raid Table + Stats (75%) */}
+      <div className="raids-split-layout raids-split-layout--ledger-only" ref={containerRef}>
       <div className="raids-content-block">
         <div className="raids-table-wrapper" data-density={density}>
           {/* Header */}
@@ -269,18 +268,8 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
             </div>
           </div>
 
-          {/* Unified filters */}
+          {/* Status filters */}
           <div className="raids-filters">
-            <div className="relative flex-1 min-w-[160px] max-w-xs">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-abi-text-dim" />
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search map, mode, loot…"
-                className="w-full pl-8 pr-3 py-1.5 bg-abi-bg border border-abi-border rounded-md text-sm text-abi-text placeholder:text-abi-text-dim focus:outline-none focus:border-abi-orange"
-              />
-            </div>
             <div className="filter-tabs">
               {(['all', 'EXTRACTED', 'DIED'] as FilterStatus[]).map((tab) => (
                 <button
@@ -319,8 +308,8 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
                   title={raids.length === 0 ? 'No raids yet' : 'No matching raids'}
                   description={
                     raids.length === 0
-                      ? 'Use the log panel to record your first raid.'
-                      : 'Try clearing search or switching status filter.'
+                      ? 'Use the mission debrief panel to record your first raid.'
+                      : 'Try switching the status filter.'
                   }
                 />
               </div>
@@ -395,931 +384,3 @@ export function RaidsPage({ onRaidClick }: { onRaidClick: (raidId: string) => vo
     </div>
   );
 }
-
-// ============================================
-// LOG RAID BLOCK (Inline Block Component)
-// ============================================
-
-function LogRaidBlock() {
-  const settings = getStoredSettings();
-
-  // Form state
-  const [map, setMap] = useState('tv_station');
-  const [mode, setMode] = useState('forbidden');
-  const [status, setStatus] = useState<'EXTRACTED' | 'DIED' | ''>('');
-  const [kills, setKills] = useState<number | undefined>(undefined);
-  const [gearValue, setGearValue] = useState<number | undefined>(undefined);
-  const [rescuePercentage, setRescuePercentage] = useState<number | undefined>(undefined);
-  const [isRed, setIsRed] = useState(false);
-
-  // Ammo and Consumables
-  const [ammo, setAmmo] = useState<AmmoEntry[]>([]);
-  const [consumables, setConsumables] = useState<ConsumableEntry[]>([]);
-
-  // Loot
-  const [lootValue, setLootValue] = useState<number | undefined>(undefined);
-
-  // Modals
-  const [showAmmoModal, setShowAmmoModal] = useState(false);
-  const [showConsumablesModal, setShowConsumablesModal] = useState(false);
-
-  // Temp storage for modal data
-  const [pendingAmmo, setPendingAmmo] = useState<AmmoEntry[]>([]);
-  const [pendingConsumables, setPendingConsumables] = useState<ConsumableEntry[]>([]);
-
-  const handleOpenAmmoModal = () => {
-    setPendingAmmo(ammo);
-    setShowAmmoModal(true);
-  };
-
-  const handleSaveAmmo = (newAmmo: AmmoEntry[]) => {
-    setAmmo(newAmmo);
-  };
-
-  const handleOpenConsumablesModal = () => {
-    setPendingConsumables(consumables);
-    setShowConsumablesModal(true);
-  };
-
-  const handleSaveConsumables = (newConsumables: ConsumableEntry[]) => {
-    setConsumables(newConsumables);
-  };
-
-  const gearRescue: GearRescueData | undefined = status === 'DIED' && (rescuePercentage ?? 0) > 0 && (gearValue ?? 0) > 0
-    ? calculateGearRescue(gearValue ?? 0, rescuePercentage ?? 0)
-    : undefined;
-
-  const raidPreview = useMemo(() => {
-    const previewRaid = {
-      ammo,
-      consumables,
-      gearValue: gearValue ?? 0,
-      gearRescue,
-      loot: [],
-      lootValue: lootValue ?? 0,
-    };
-    const taxRate = settings.globalTaxRate ?? 0.10;
-    return calculateRaidEconomy(previewRaid, taxRate);
-  }, [ammo, consumables, gearValue, gearRescue, lootValue, settings]);
-
-  const handleSave = () => {
-    const now = Date.now();
-    const raidId = generateId();
-    const raid: Raid = {
-      id: raidId,
-      timestamp: now,
-      map: MAPS.find(m => m.id === map)?.name || map,
-      mode: (GAME_MODES.find(m => m.id === mode)?.name || mode) as any,
-      status: (status || 'EXTRACTED') as any,
-      duration: 0, // Duration removed per requirements
-      ammo,
-      consumables,
-      gearValue: gearValue ?? 0,
-      gearRescue,
-      loot: [],
-      lootValue: lootValue ?? 0,
-      kills: kills ?? 0,
-      deaths: 0, // Deaths removed per requirements
-      investment: raidPreview.investment,
-      netProfit: raidPreview.netProfit,
-      roi: raidPreview.roi,
-      isHighlight: isRed, // Red flag maps to highlight
-      highlightReason: isRed ? 'Red flagged raid' : undefined,
-      sessionId: getSessionId(now, settings.sessionDuration ?? 60),
-    };
-
-    addRaid(raid);
-
-    // Auto-generate highlights based on thresholds
-    const storedSettings = getStoredSettings();
-    const profitThreshold = storedSettings.highlightProfitThreshold ?? 50000;
-    const killThreshold = storedSettings.highlightKillThreshold ?? 5;
-
-    // 1. RED toggle → category 'rare'
-    if (isRed) {
-      addHighlight({
-        raidId,
-        timestamp: now,
-        category: 'rare',
-        reason: `Red item found`,
-        isFavorite: false,
-      });
-    }
-
-    // 2. Net profit meets threshold → category 'profit'
-    if (raid.netProfit >= profitThreshold) {
-      addHighlight({
-        raidId,
-        timestamp: now,
-        category: 'profit',
-        reason: `Net profit $${raid.netProfit.toLocaleString()}`,
-        isFavorite: false,
-      });
-    }
-
-    // 3. Kills meets threshold → category 'kills'
-    if ((kills ?? 0) >= killThreshold) {
-      addHighlight({
-        raidId,
-        timestamp: now,
-        category: 'kills',
-        reason: `${kills} kills`,
-        isFavorite: false,
-      });
-    }
-
-    handleClose();
-  };
-
-  const handleClose = () => {
-    setMap('tv_station');
-    setMode('forbidden');
-    setStatus('');
-    setKills(undefined);
-    setGearValue(undefined);
-    setRescuePercentage(undefined);
-    setIsRed(false);
-    setAmmo([]);
-    setConsumables([]);
-    setLootValue(undefined);
-  };
-
-  const ammoTotalCost = ammo.reduce((sum, a) => sum + a.totalCost, 0);
-  const consumablesTotalCost = consumables.reduce((sum, c) => sum + c.totalCost, 0);
-
-  return (
-    <div className="log-raid-block">
-      {/* Header */}
-      <div className="log-raid-block-header">
-        <Shield size={18} />
-        <h2>Log Raid</h2>
-      </div>
-
-      {/* Row 1: Status */}
-      <div className="form-group">
-        <label>STATUS</label>
-        <div className="status-toggle-group">
-          <button
-            type="button"
-            onClick={() => setStatus('EXTRACTED')}
-            className={`status-toggle-btn ${status === 'EXTRACTED' ? 'active-extracted' : ''}`}
-          >
-            ✓ Extracted
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatus('DIED')}
-            className={`status-toggle-btn ${status === 'DIED' ? 'active-died' : ''}`}
-          >
-            ✗ Died
-          </button>
-        </div>
-      </div>
-
-      {/* Row 2: Map + Mode */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="form-group">
-          <label>MAP</label>
-          <select
-            value={map}
-            onChange={(e) => setMap(e.target.value)}
-            className="w-full px-3 py-2 bg-abi-bg border border-abi-border rounded-lg text-abi-text text-sm"
-          >
-            {MAPS.map(m => (
-              <option key={m.id} value={m.id}>{m.name.toUpperCase()}</option>
-            ))}
-          </select>
-        </div>
-        <div className="form-group">
-          <label>MODE</label>
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            className="w-full px-3 py-2 bg-abi-bg border border-abi-border rounded-lg text-abi-text text-sm"
-          >
-            {GAME_MODES.map(m => (
-              <option key={m.id} value={m.id}>{m.name.toUpperCase()}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Row 3: Gear Value */}
-      <div className="form-group">
-        <label>GEAR VALUE BROUGHT</label>
-        <input
-          type="number"
-          min={0}
-          value={gearValue ?? ''}
-          onChange={(e) => setGearValue(e.target.value ? parseInt(e.target.value) : undefined)}
-          className="w-full px-3 py-2 bg-abi-bg border border-abi-border rounded-lg text-abi-text text-sm"
-          placeholder="0"
-        />
-      </div>
-
-      {/* Row 4: Kills + RED Toggle (1:3 ratio) */}
-      <div className="kills-red-row">
-        <div className="form-group kills-block">
-          <label>KILLS</label>
-          <input
-            type="number"
-            min={0}
-            value={kills ?? ''}
-            onChange={(e) => setKills(e.target.value ? parseInt(e.target.value) : undefined)}
-            className="w-full px-3 py-2 bg-abi-bg border border-abi-border rounded-lg text-abi-text text-sm"
-            placeholder="0"
-          />
-        </div>
-        <div className="form-group red-toggle-block">
-          <label>RED</label>
-          <button
-            type="button"
-            onClick={() => setIsRed(!isRed)}
-            className={`w-full px-3 py-2 rounded-lg border text-sm font-semibold uppercase tracking-wider transition-all h-full ${
-              isRed
-                ? 'bg-red-600/20 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]'
-                : 'bg-abi-bg border-abi-border text-abi-text-dim hover:border-abi-text-dim'
-            }`}
-          >
-            {isRed ? '● RED ITEM FOUND' : '○ NO RED ITEM'}
-          </button>
-        </div>
-      </div>
-
-      {/* Rescue Percentage Slider (only when Died) */}
-      {status === 'DIED' && (gearValue ?? 0) > 0 && (
-        <div className="rescue-slider-container">
-          <div className="rescue-slider-label">
-            <span>Rescue Percentage</span>
-            <span className="rescue-slider-value">{rescuePercentage ?? 0}%</span>
-          </div>
-          <div className="rescue-slider-track">
-            <div
-              className="rescue-slider-fill"
-              style={{ width: `${rescuePercentage ?? 0}%` }}
-            />
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={rescuePercentage ?? 0}
-              onChange={(e) => setRescuePercentage(parseInt(e.target.value))}
-              className="rescue-slider-input"
-            />
-          </div>
-          <div className="rescue-slider-ticks">
-            <span className="rescue-slider-tick">0</span>
-            <span className="rescue-slider-tick">25</span>
-            <span className="rescue-slider-tick">50</span>
-            <span className="rescue-slider-tick">75</span>
-            <span className="rescue-slider-tick">100</span>
-          </div>
-          {gearRescue && (
-            <div className="mt-3 space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-abi-text-muted">Rescued Value:</span>
-                <span className="text-green-400">${gearRescue.rescuedValue.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-abi-text-muted">Gear Loss:</span>
-                <span className="text-red-400">${gearRescue.gearLoss.toLocaleString()}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Divider */}
-      <div className="my-4 border-t border-abi-border" />
-
-      {/* Row 5: Ammunition (Total Only) */}
-      <div className="form-group">
-        <label>AMMUNITION</label>
-        <div className="log-mini-item">
-          <span>Total Ammo Value</span>
-          <span>${ammoTotalCost.toLocaleString()}</span>
-        </div>
-        <button
-          type="button"
-          onClick={handleOpenAmmoModal}
-          className="w-full mt-2 px-3 py-2 border border-abi-border rounded-lg text-xs font-semibold text-abi-text-muted hover:text-abi-orange hover:border-abi-orange transition-colors"
-        >
-          {ammo.length > 0 ? 'Edit Ammo' : '+ Add Ammo'}
-        </button>
-      </div>
-
-      {/* Row 6: Consumables (Total Only) */}
-      <div className="form-group">
-        <label>CONSUMABLES</label>
-        <div className="log-mini-item">
-          <span>Total Consumables Value</span>
-          <span>${consumablesTotalCost.toLocaleString()}</span>
-        </div>
-        <button
-          type="button"
-          onClick={handleOpenConsumablesModal}
-          className="w-full mt-2 px-3 py-2 border border-abi-border rounded-lg text-xs font-semibold text-abi-text-muted hover:text-abi-orange hover:border-abi-orange transition-colors"
-        >
-          {consumables.length > 0 ? 'Edit Consumables' : '+ Add Consumables'}
-        </button>
-      </div>
-
-      {/* Loot Value */}
-      <div className="form-group">
-        <label>LOOT VALUE</label>
-        <input
-          type="number"
-          min={0}
-          value={lootValue ?? ''}
-          onChange={(e) => setLootValue(e.target.value ? parseInt(e.target.value) : undefined)}
-          className="w-full px-3 py-2 bg-abi-bg border border-abi-border rounded-lg text-abi-text text-sm"
-          placeholder="0"
-        />
-      </div>
-
-      {/* Summary */}
-      <div className="mt-4 p-3 bg-abi-bg rounded-lg border border-abi-border">
-        <div className="grid grid-cols-2 gap-2 text-center">
-          <div>
-            <p className="text-xs text-abi-text-dim mb-1">Investment</p>
-            <p className="text-sm font-bold text-abi-text">${raidPreview.investment.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-xs text-abi-text-dim mb-1">Net Profit</p>
-            <p className={`text-sm font-bold ${raidPreview.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {raidPreview.netProfit >= 0 ? '+' : ''}${raidPreview.netProfit.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="mt-4 space-y-2">
-        <button
-          type="button"
-          onClick={handleSave}
-          className="btn-primary"
-        >
-          Save Raid
-        </button>
-        <button
-          type="button"
-          onClick={handleClose}
-          className="btn-secondary"
-        >
-          Reset
-        </button>
-      </div>
-
-      {/* Nested Modals */}
-      <AmmoPickerModal
-        isOpen={showAmmoModal}
-        onClose={() => setShowAmmoModal(false)}
-        onSave={handleSaveAmmo}
-        initialAmmo={pendingAmmo}
-      />
-      <ConsumablesPickerModal
-        isOpen={showConsumablesModal}
-        onClose={() => setShowConsumablesModal(false)}
-        onSave={handleSaveConsumables}
-        initialConsumables={pendingConsumables}
-      />
-    </div>
-  );
-}
-
-// ============================================
-// AMMO PICKER MODAL (Split-Screen + Radial)
-// ============================================
-
-function AmmoPickerModal({ isOpen, onClose, onSave, initialAmmo = [] }: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (ammo: AmmoEntry[]) => void;
-  initialAmmo?: AmmoEntry[];
-}) {
-  const [ammo, setAmmo] = useState<AmmoEntry[]>(initialAmmo);
-  const [selectedCaliber, setSelectedCaliber] = useState<string>('');
-  const [selectedTier, setSelectedTier] = useState<string>('');
-  const [quantity, setQuantity] = useState<number>(1);
-  const [hasChild, setHasChild] = useState(false);
-  const [expandedCaliber, setExpandedCaliber] = useState<string | null>(null);
-
-  const handleAddAmmo = (tierId: string) => {
-    if (!selectedCaliber || !tierId) return;
-
-    const caliberData = AMMO_CALIBERS.find(c => c.id === selectedCaliber);
-    if (!caliberData) return;
-
-    const tierData = caliberData.tiers.find(t => t.id === tierId);
-    if (!tierData) return;
-
-    const newAmmo: AmmoEntry = {
-      id: generateId(),
-      caliber: caliberData.name,
-      tier: tierData.name,
-      quantity: 1,
-      costPerRound: tierData.costPerRound,
-      totalCost: tierData.costPerRound,
-    };
-    setAmmo([...ammo, newAmmo]);
-    setSelectedTier('');
-    // Open child modal to show the list
-    setHasChild(true);
-  };
-
-  const handleRemoveAmmo = (id: string) => {
-    setAmmo(ammo.filter(a => a.id !== id));
-  };
-
-  const handleUpdateQuantity = (id: string, newQuantity: number) => {
-    setAmmo(ammo.map(a => {
-      if (a.id === id) {
-        return {
-          ...a,
-          quantity: newQuantity,
-          totalCost: a.costPerRound * newQuantity,
-        };
-      }
-      return a;
-    }));
-  };
-
-  const handleSave = () => {
-    onSave(ammo);
-    setHasChild(false);
-    onClose();
-  };
-
-  const handleCloseChild = () => {
-    setHasChild(false);
-  };
-
-  const handleCloseMain = () => {
-    setHasChild(false);
-    onClose();
-  };
-
-  const totalCost = ammo.reduce((sum, a) => sum + a.totalCost, 0);
-
-  // Get tier options for selected caliber
-  const getTierOptions = () => {
-    if (!selectedCaliber) return [];
-    const caliberData = AMMO_CALIBERS.find(c => c.id === selectedCaliber);
-    if (!caliberData) return [];
-    return caliberData.tiers.map(t => ({ value: t.id, label: `${t.name} ($${t.costPerRound}/round)` }));
-  };
-
-  // Extract tier number from tier name (e.g., "M995" -> "T5", "M855" -> "T4")
-  const getTierNumber = (tierName: string): string => {
-    // Simple heuristic based on cost
-    const costMap: Record<string, string> = {
-      'PS': 'T2', 'BP': 'T5', 'BT': 'T4', 'BS': 'T5',
-      'M855': 'T3', 'M856A1': 'T4', 'M995': 'T5',
-      'R37F': 'T3', 'SS198': 'T4', 'SS190': 'T4',
-      'DVC12': 'T5', 'M855A1': 'T4', 'DVP88': 'T5',
-      'PST': 'T2', 'LRNPC': 'T3',
-      'AP-6.8': 'T5', 'M80': 'T3', 'M61': 'T5', 'M993': 'T5',
-      'LPS': 'T3', 'BT-7.62': 'T4', '7BT1': 'T5',
-      'AP-9mm': 'T4', 'RIP': 'T4',
-      'SP-5': 'T3', 'SP-6': 'T4', 'BP-9x39': 'T5',
-      'FMJ': 'T2', 'AP20': 'T5',
-      'Buckshot': 'T2', 'Slug': 'T3', 'Flechette': 'T4', 'AP-20': 'T5',
-    };
-    return costMap[tierName] || 'T3';
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-wrapper" onClick={handleCloseMain}>
-      <div className={`modal-container ${hasChild ? 'has-child' : ''}`} onClick={(e) => e.stopPropagation()}>
-        {/* Main Modal: Caliber/Tier Selection */}
-        <div className="main-modal">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-abi-text font-orbitron">Add Ammo</h3>
-            <button
-              onClick={handleCloseMain}
-              className="p-2 rounded-lg border border-abi-border hover:border-abi-orange hover:text-abi-orange transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Caliber Selection with Radial Accordion - 2 Column Grid (CLICK-BASED) */}
-          <div className="mb-6">
-            <label className="block text-xs font-semibold text-abi-text-muted uppercase tracking-wider mb-3">
-              Select Caliber
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {AMMO_CALIBERS.map(caliber => {
-                const isOpen = expandedCaliber === caliber.id;
-                return (
-                  <div key={caliber.id} className={`caliber-group ${isOpen ? 'is-open' : ''}`}>
-                    <div
-                      className={`caliber-node ${selectedCaliber === caliber.id ? 'border-abi-orange' : ''}`}
-                      onClick={() => {
-                        setSelectedCaliber(caliber.id);
-                        setSelectedTier('');
-                        setExpandedCaliber(isOpen ? null : caliber.id);
-                      }}
-                    >
-                      <span>{caliber.name}</span>
-                      <span className="text-xs text-abi-text-dim">{caliber.tiers.length}</span>
-                    </div>
-                    {/* Tier Branch (Radial Accordion) */}
-                    <div className="tier-branch">
-                      {caliber.tiers.map(tier => (
-                      <div
-                        key={tier.id}
-                        data-tier={getTierNumber(tier.name)}
-                        className={`tier-node ${selectedTier === tier.id ? 'border-abi-orange bg-abi-orange/10' : ''}`}
-                        onClick={() => {
-                          setSelectedTier(tier.id);
-                          handleAddAmmo(tier.id);
-                        }}
-                      >
-                        <span>{tier.name}</span>
-                        <span className="tier-cost">${tier.costPerRound}</span>
-                      </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Direct selection note - no quantity/add button needed */}
-          <p className="text-xs text-abi-text-dim text-center py-2">
-            Click a tier to add ammo • Manage quantities in the loadout panel
-          </p>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-abi-border">
-            <button
-              onClick={handleCloseMain}
-              className="px-4 py-2 border border-abi-border rounded-lg text-sm text-abi-text-muted hover:text-abi-text hover:border-abi-orange transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-abi-orange hover:bg-orange-500 rounded-lg text-sm text-white font-semibold transition-colors"
-            >
-              Save Ammo
-            </button>
-          </div>
-        </div>
-
-        {/* Child Modal: Ammo List Management */}
-        <div className="child-modal">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-abi-text font-orbitron">Ammo Loadout</h3>
-            <button
-              onClick={handleCloseChild}
-              className="p-2 rounded-lg border border-abi-border hover:border-abi-orange hover:text-abi-orange transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-
-          {ammo.length > 0 ? (
-            <div className="space-y-4">
-              <div className="p-3 bg-abi-bg rounded-lg border border-abi-border">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-abi-text-muted uppercase tracking-wider">
-                    Selected ({ammo.length})
-                  </span>
-                  <span className="text-sm text-abi-orange font-bold font-orbitron">
-                    ${totalCost.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {ammo.map(a => (
-                  <div
-                    key={a.id}
-                    className="flex items-center gap-3 p-3 bg-abi-bg border border-abi-border rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-abi-text">{a.caliber}</p>
-                      <p className="text-xs text-abi-text-dim">{a.tier}</p>
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      value={a.quantity}
-                      onChange={(e) => handleUpdateQuantity(a.id, parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1 bg-abi-bg border border-abi-border rounded text-abi-text text-sm text-center"
-                    />
-                    <p className="text-sm text-abi-orange w-20 text-right font-orbitron">
-                      ${a.totalCost.toLocaleString()}
-                    </p>
-                    <button
-                      onClick={() => handleRemoveAmmo(a.id)}
-                      className="p-1.5 text-abi-text-muted hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <Swords size={48} className="text-abi-text-dim mb-4" />
-              <p className="text-abi-text-muted text-sm">No ammo selected</p>
-              <p className="text-abi-text-dim text-xs mt-1">Select calibers from the main panel</p>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-abi-border">
-            <button
-              onClick={handleCloseChild}
-              className="px-4 py-2 border border-abi-border rounded-lg text-sm text-abi-text-muted hover:text-abi-text hover:border-abi-orange transition-colors"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-abi-orange hover:bg-orange-500 rounded-lg text-sm text-white font-semibold transition-colors"
-            >
-              Save Ammo
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// CONSUMABLES PICKER MODAL (Left Child Modal)
-// ============================================
-
-function ConsumablesPickerModal({ isOpen, onClose, onSave, initialConsumables = [] }: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (consumables: ConsumableEntry[]) => void;
-  initialConsumables?: ConsumableEntry[];
-}) {
-  const [consumables, setConsumables] = useState<ConsumableEntry[]>(initialConsumables);
-  const [hasChild, setHasChild] = useState(false);
-
-  // Group consumables by subtype
-  const treatmentGroups = {
-    medicine: CONSUMABLES.filter(c => c.id.startsWith('medicine') || c.name === 'Adrenaline' || c.name === 'Painkillers'),
-    treatments: CONSUMABLES.filter(c => c.id === 'ifix' || c.id === 'bandage' || c.id === 'splint'),
-    medkits: CONSUMABLES.filter(c => c.id === 'medkit' || c.id === 'surgkit'),
-  };
-
-  const throwableGroups = {
-    defend: CONSUMABLES.filter(c => c.id === 'stun_grenade' || c.id === 'smoke_grenade'),
-    blast: CONSUMABLES.filter(c => c.id === 'frag_grenade' || c.id === 'molotov' || c.id === 'c4'),
-  };
-
-  const handleAdd = (template: typeof CONSUMABLES[0]) => {
-    const existing = consumables.find(c => c.name === template.name);
-    if (existing) {
-      setConsumables(consumables.map(c => {
-        if (c.name === template.name) {
-          return {
-            ...c,
-            quantity: c.quantity + 1,
-            totalCost: c.costPerUnit * (c.quantity + 1),
-          };
-        }
-        return c;
-      }));
-    } else {
-      const newConsumable: ConsumableEntry = {
-        id: generateId(),
-        name: template.name,
-        type: template.type,
-        quantity: 1,
-        costPerUnit: template.baseCost,
-        totalCost: template.baseCost,
-      };
-      setConsumables([...consumables, newConsumable]);
-    }
-    // Open child modal when items are selected
-    setHasChild(true);
-  };
-
-  const handleRemove = (id: string) => {
-    setConsumables(consumables.filter(c => c.id !== id));
-  };
-
-  const handleUpdateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity < 1) {
-      handleRemove(id);
-      return;
-    }
-    setConsumables(consumables.map(c => {
-      if (c.id === id) {
-        return {
-          ...c,
-          quantity: newQuantity,
-          totalCost: c.costPerUnit * newQuantity,
-        };
-      }
-      return c;
-    }));
-  };
-
-  const handleSave = () => {
-    onSave(consumables);
-    setHasChild(false);
-    onClose();
-  };
-
-  const handleCloseChild = () => {
-    setHasChild(false);
-  };
-
-  const handleCloseMain = () => {
-    setHasChild(false);
-    onClose();
-  };
-
-  const totalCost = consumables.reduce((sum, c) => sum + c.totalCost, 0);
-
-  // Simple selectable item component (no quantity controls in parent)
-  const SelectableItem = ({ item, type }: { item: typeof CONSUMABLES[0], type: 'treatment' | 'throwable' }) => {
-    const existing = consumables.find(c => c.name === item.name);
-    const quantity = existing?.quantity || 0;
-
-    return (
-      <button
-        onClick={() => handleAdd(item)}
-        className={`w-full p-2 rounded-lg border text-left transition-all ${
-          quantity > 0
-            ? 'bg-abi-orange/10 border-abi-orange text-abi-orange'
-            : 'bg-abi-bg border-abi-border text-abi-text-muted hover:border-abi-orange hover:text-abi-orange'
-        }`}
-      >
-        <p className="text-xs font-medium truncate">{item.name}</p>
-        {quantity > 0 && (
-          <p className="text-[10px] text-abi-orange font-semibold mt-0.5">x{quantity}</p>
-        )}
-      </button>
-    );
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-wrapper" onClick={handleCloseMain}>
-      <div className={`modal-container ${hasChild ? 'has-consumables-child' : ''}`} onClick={(e) => e.stopPropagation()}>
-        {/* Main Modal: Consumables Selection */}
-        <div className="main-modal">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-abi-text font-orbitron">Add Consumables</h3>
-            <button
-              onClick={handleCloseMain}
-              className="p-2 rounded-lg border border-abi-border hover:border-abi-orange hover:text-abi-orange transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Treatments Section */}
-          <div className="mb-6">
-            <h4 className="text-xs font-semibold text-abi-text-muted uppercase tracking-wider mb-3">
-              Treatments
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              {Object.entries(treatmentGroups).map(([groupName, items]) => (
-                <div key={groupName} className="space-y-2">
-                  <p className="text-[10px] text-abi-text-dim uppercase tracking-wider">{groupName}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {items.map(item => (
-                      <SelectableItem key={item.id} item={item} type="treatment" />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Throwables Section */}
-          <div>
-            <h4 className="text-xs font-semibold text-abi-text-muted uppercase tracking-wider mb-3">
-              Throwables
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              {Object.entries(throwableGroups).map(([groupName, items]) => (
-                <div key={groupName} className="space-y-2">
-                  <p className="text-[10px] text-abi-text-dim uppercase tracking-wider">{groupName}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {items.map(item => (
-                      <SelectableItem key={item.id} item={item} type="throwable" />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-abi-border">
-            <button
-              onClick={handleCloseMain}
-              className="px-4 py-2 border border-abi-border rounded-lg text-sm text-abi-text-muted hover:text-abi-text hover:border-abi-orange transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-abi-orange hover:bg-orange-500 rounded-lg text-sm text-white font-semibold transition-colors"
-            >
-              Save Consumables
-            </button>
-          </div>
-        </div>
-
-        {/* Child Modal: Selected Consumables (Left Side) */}
-        <div className="consumables-child-modal">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-abi-text font-orbitron">Selected Items</h3>
-            <button
-              onClick={handleCloseChild}
-              className="p-2 rounded-lg border border-abi-border hover:border-abi-orange hover:text-abi-orange transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-
-          {consumables.length > 0 ? (
-            <div className="space-y-4">
-              <div className="p-3 bg-abi-bg rounded-lg border border-abi-border">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-abi-text-muted uppercase tracking-wider">
-                    Selected ({consumables.length})
-                  </span>
-                  <span className="text-sm text-abi-orange font-bold font-orbitron">
-                    ${totalCost.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {consumables.map(c => (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-3 p-3 bg-abi-bg border border-abi-border rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-abi-text">{c.name}</p>
-                      <p className="text-xs text-abi-text-dim">${c.costPerUnit.toLocaleString()}/each</p>
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      value={c.quantity}
-                      onChange={(e) => handleUpdateQuantity(c.id, parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1 bg-abi-bg border border-abi-border rounded text-abi-text text-sm text-center"
-                    />
-                    <p className="text-sm text-abi-orange w-20 text-right font-orbitron">
-                      ${c.totalCost.toLocaleString()}
-                    </p>
-                    <button
-                      onClick={() => handleRemove(c.id)}
-                      className="p-1.5 text-abi-text-muted hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <Pill size={48} className="text-abi-text-dim mb-4" />
-              <p className="text-abi-text-muted text-sm">No consumables selected</p>
-              <p className="text-abi-text-dim text-xs mt-1">Add items from the main panel</p>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-abi-border">
-            <button
-              onClick={handleCloseChild}
-              className="px-4 py-2 border border-abi-border rounded-lg text-sm text-abi-text-muted hover:text-abi-text hover:border-abi-orange transition-colors"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-abi-orange hover:bg-orange-500 rounded-lg text-sm text-white font-semibold transition-colors"
-            >
-              Save Consumables
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-

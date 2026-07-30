@@ -248,7 +248,9 @@ export function RecentRaidCard({ raids, onRaidClick }: RecentRaidCardProps) {
                 <p className={`text-lg font-semibold ${raid.profit >= 0 ? 'text-green-400' : 'text-red-500'}`}>
                   {raid.profit >= 0 ? `+$${raid.profit.toLocaleString()}` : `-$${Math.abs(raid.profit).toLocaleString()}`}
                 </p>
-                <p className="text-[11px] text-abi-text-muted uppercase tracking-[0.24em] mt-1">{raid.status}</p>
+                <p className="text-[11px] text-abi-text-muted uppercase tracking-[0.24em] mt-1">
+                  {raid.status === 'FLED' ? 'DIED' : raid.status}
+                </p>
               </div>
             </div>
           </button>

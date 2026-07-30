@@ -66,7 +66,7 @@ Raid {
   id, timestamp, map, mode, status (EXTRACTED|DIED|FLED), duration
   ammo[], consumables[], gearValue, gearRescue?, loot[], lootValue
   kills, deaths
-  investment, netProfit, roi  (calculated)
+  investment, netProfit, roi  (stored realized P/L)
   sessionId, isHighlight, highlightCategory?, highlightReason?
 }
 ```
@@ -82,6 +82,11 @@ Reference to a raid with category (profit/kills/rare/manual), reason text, favor
 ### LootDBItem
 
 Personal catalog: name, base value, vendor prices, rarity, notes.
+
+**ROI views:** Run Cost measures ROI against ammo + consumables. Loadout measures
+it against full gear brought + ammo + consumables. The view is computed on read
+and persisted in `abi_settings` without rewriting raid history. Profit stays on
+realized cash flow in both views.
 
 **Storage keys:** `abi_raids`, `abi_sessions`, `abi_highlights`, `abi_lootdb`, `abi_settings` in localStorage.
 
