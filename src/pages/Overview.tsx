@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   Activity,
   CalendarDays,
@@ -13,24 +13,42 @@ import {
 import { useRoiRaids, useHighlights, useAggregatedSessions, useDashboardAnalytics } from '../hooks/useStorageQuery';
 import { formatCurrency, formatNumber, formatPercentage } from '../utils/mockData';
 import { formatDuration } from '../utils/economy';
+import { calculateProfitCurve } from '../utils/analytics';
 import { generateQuickRecommendations, MIN_OPERATIONAL_HISTORY } from '../utils/intelligence';
 import { RecommendationList } from '../components/intelligence/RecommendationCard';
+import { InteractiveCumulativeChart } from '../components/charts/InteractiveCumulativeChart';
 import { Badge, Caption, DataValue, DisplayValue, MapName, MetaLabel, RoiViewToggle, StatusBadge, type Tone } from '../components/ui';
 import {
   AnimatedStatValue,
   AnimatedBar,
   RevealSection,
-  SparklineDraw,
   StaggerContainer,
   StaggerItem,
   StaggerList,
   AnimatedEmptyStateIcon,
 } from '../components/motion';
+import type { ProfitCurvePoint } from '../types';
+
+/** Recent operations rows shown without scroll (fits ~340px panel body). */
+const RECENT_OPERATIONS_LIMIT = 5;
 interface OverviewProps {
   onRaidClick: (raidId: string) => void;
+  onSessionNavigate?: (sessionId: string) => void;
 }
 
-export function Overview({ onRaidClick }: OverviewProps) {
+function raidHasRedsCollection(raid: {
+  redItemFound?: boolean;
+  highlightCategory?: string;
+  highlightReason?: string;
+  loot: { rarity?: string }[];
+}): boolean {
+  if (typeof raid.redItemFound === 'boolean') return raid.redItemFound;
+  if (raid.highlightCategory === 'rare') return true;
+  if (raid.highlightReason?.toLowerCase().includes('red item')) return true;
+  return raid.loot.some((item) => item.rarity === 'red');
+}
+
+export function Overview({ onRaidClick, onSessionNavigate }: OverviewProps) {
   const analytics = useDashboardAnalytics();
   const raids = useRoiRaids();
   const highlights = useHighlights();
@@ -39,17 +57,10 @@ export function Overview({ onRaidClick }: OverviewProps) {
   const recentRaids = useMemo(() => {
     return [...raids]
       .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 8);
+      .slice(0, RECENT_OPERATIONS_LIMIT);
   }, [raids]);
 
-  const profitSpark = useMemo(() => {
-    const sorted = [...raids].sort((a, b) => a.timestamp - b.timestamp).slice(-12);
-    let cum = 0;
-    return sorted.map((r) => {
-      cum += r.netProfit;
-      return cum;
-    });
-  }, [raids]);
+  const profitCurve = useMemo(() => calculateProfitCurve(raids), [raids]);
 
   const operationalBrief = useMemo(() => {
     const sorted = [...raids].sort((a, b) => b.timestamp - a.timestamp);
@@ -79,12 +90,15 @@ export function Overview({ onRaidClick }: OverviewProps) {
       extractionStreak += 1;
     }
 
-    const totalDuration = raids.reduce((total, raid) => total + raid.duration, 0);
     const riskLevel = analytics.dryStreak >= 3
       ? 'High'
       : analytics.averageROI < 0
         ? 'Elevated'
         : 'Controlled';
+
+    const opsPerDeployment = sessions.length > 0
+      ? raids.length / sessions.length
+      : 0;
 
     return {
       todayProfit,
@@ -93,9 +107,8 @@ export function Overview({ onRaidClick }: OverviewProps) {
       bestMap,
       extractionStreak,
       riskLevel,
-      averageSessionMinutes: sessions.length > 0
-        ? Math.round(totalDuration / sessions.length)
-        : 0,
+      opsPerDeployment,
+      deploymentCount: sessions.length,
     };
   }, [analytics.averageROI, analytics.dryStreak, raids, sessions.length]);
 
@@ -135,6 +148,39 @@ export function Overview({ onRaidClick }: OverviewProps) {
   }, [raids]);
 
   const recommendations = useMemo(() => generateQuickRecommendations(raids), [raids]);
+
+  const careerOutcomeSummary = useMemo(() => {
+    if (analytics.totalRaids === 0) {
+      return {
+        extracted: 0,
+        notExtracted: 0,
+        detail: 'No operations recorded yet',
+        streakNote: null as string | null,
+        streakTone: 'secondary' as Tone,
+      };
+    }
+    const extracted = raids.filter((raid) => raid.status === 'EXTRACTED').length;
+    const notExtracted = analytics.totalRaids - extracted;
+    const detail = `${formatNumber(extracted)} extracted · ${formatNumber(notExtracted)} not extracted`;
+    const streakNote =
+      analytics.dryStreak > 0
+        ? `Latest ${formatNumber(analytics.dryStreak)} without extract`
+        : operationalBrief.extractionStreak > 0
+          ? `${formatNumber(operationalBrief.extractionStreak)} consecutive extracts`
+          : null;
+    const streakTone: Tone =
+      analytics.dryStreak > 0
+        ? 'warning'
+        : operationalBrief.extractionStreak > 0
+          ? 'positive'
+          : 'secondary';
+    return { extracted, notExtracted, detail, streakNote, streakTone };
+  }, [
+    analytics.dryStreak,
+    analytics.totalRaids,
+    operationalBrief.extractionStreak,
+    raids,
+  ]);
 
   const lastUpdate = recentRaids[0]
     ? new Date(recentRaids[0].timestamp).toLocaleString('en-US', {
@@ -191,34 +237,41 @@ export function Overview({ onRaidClick }: OverviewProps) {
       </RevealSection>
 
       <RevealSection immediate delay={0.06}>
-      <section aria-label="Commander performance" className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1.35fr_0.85fr]">
+      <section aria-label="Commander performance" className="mt-3 flex flex-col gap-3">
         <StaggerContainer className="contents" immediate>
           <StaggerItem>
             <PrimaryMetric
               value={analytics.lifetimeProfit}
               tone={analytics.lifetimeProfit >= 0 ? 'positive' : 'negative'}
-              spark={profitSpark}
+              points={profitCurve.points}
+              minY={profitCurve.minY}
+              maxY={profitCurve.maxY}
+              onRaidClick={onRaidClick}
             />
           </StaggerItem>
           <StaggerItem>
-            <SecondaryMetric
-              value={analytics.averageROI}
-              tone={analytics.averageROI >= 0 ? 'positive' : 'negative'}
-              detail={analytics.averageROI >= 0 ? 'Sustained gain profile' : 'Review loadout spend'}
-            />
-          </StaggerItem>
-          <StaggerItem className="lg:col-span-2">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <SupportingMetric
-                label="Extraction rate"
-                value={formatPercentage(analytics.extractionRate)}
-                detail={`${formatNumber(analytics.totalExtracted)} total loot secured`}
-              />
-              <SupportingMetric
-                label="Operations logged"
-                value={formatNumber(analytics.totalRaids)}
-                detail={analytics.dryStreak > 0 ? `${analytics.dryStreak} KIA without extract` : 'Extraction chain active'}
-              />
+            <div className="hud-card overview-panel-primary overview-performance-cluster relative overflow-hidden p-3 sm:p-4">
+              <div className="corner-accent top-left" />
+              <div className="corner-accent top-right" />
+              <div className="corner-accent bottom-left" />
+              <div className="corner-accent bottom-right" />
+              <MetaLabel tone="accent" className="mb-3 block">Performance snapshot</MetaLabel>
+              <div className="grid min-h-[168px] grid-cols-1 gap-0 lg:grid-cols-2 lg:items-stretch lg:divide-x lg:divide-abi-border/60">
+                <SecondaryMetric
+                  hero
+                  value={analytics.averageROI}
+                  tone={analytics.averageROI >= 0 ? 'positive' : 'negative'}
+                  detail={analytics.averageROI >= 0 ? 'Sustained gain profile' : 'Review loadout spend'}
+                />
+                <PerformanceSidecar
+                  extractionRate={analytics.extractionRate}
+                  lootFromExtracted={analytics.totalExtracted}
+                  operationsLogged={analytics.totalRaids}
+                  outcomeDetail={careerOutcomeSummary.detail}
+                  streakNote={careerOutcomeSummary.streakNote}
+                  streakTone={careerOutcomeSummary.streakTone}
+                />
+              </div>
             </div>
           </StaggerItem>
         </StaggerContainer>
@@ -265,9 +318,17 @@ export function Overview({ onRaidClick }: OverviewProps) {
                 detail={operationalBrief.extractionStreak > 0 ? 'Clear run active' : 'Re-establish momentum'}
               />
               <BriefReadout
-                label="Average session"
-                value={operationalBrief.averageSessionMinutes > 0 ? `${operationalBrief.averageSessionMinutes}m` : 'No data'}
-                detail="Operational tempo"
+                label="Ops / deployment"
+                value={
+                  operationalBrief.deploymentCount > 0
+                    ? operationalBrief.opsPerDeployment.toFixed(1)
+                    : 'No data'
+                }
+                detail={
+                  operationalBrief.deploymentCount > 0
+                    ? `${operationalBrief.deploymentCount} deployments logged`
+                    : 'Awaiting session data'
+                }
               />
             </BriefBand>
           </div>
@@ -276,29 +337,36 @@ export function Overview({ onRaidClick }: OverviewProps) {
       </RevealSection>
 
       <RevealSection delay={0.06}>
-      <section className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-[1.85fr_0.75fr]">
+      <section className="mt-5 grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.85fr_0.75fr]">
         <StaggerContainer className="contents xl:contents" immediate>
-          <StaggerItem><Panel title="Latest operation" subtitle="Highlighted field dossier" variant="primary" className="min-h-[320px]">          {latestHighlightRaid ? (
-            <div className="flex h-full flex-col">
+          <StaggerItem className="flex h-full min-h-0 flex-col">
+            <Panel title="Latest operation" subtitle="Highlighted field dossier" variant="primary" className="flex h-full min-h-0 flex-1 flex-col">
+          {latestHighlightRaid ? (
+            <div className="flex min-h-0 flex-1 flex-col">
               <div className="flex flex-wrap items-center gap-3 border-b border-abi-border/70 pb-4">
                 <Badge variant="orange" className="inline-flex items-center gap-1">
                   <Star size={10} />
                   Highlight
                 </Badge>
                 <Caption tone="secondary">Dossier confirmed</Caption>
-                <Caption tone="muted" className="ml-auto">
+                <span className="overview-dossier-date ml-auto type-data text-primary">
                   {new Date(latestHighlightRaid.timestamp).toLocaleDateString('en-US')}
-                </Caption>
+                </span>
               </div>
-              <div className="grid flex-1 gap-5 py-4 md:grid-cols-[1.1fr_0.9fr]">
-                <div className="flex flex-col justify-between">
+              <div className="grid min-h-0 flex-1 gap-5 py-4 md:grid-cols-[1.1fr_0.9fr] md:items-stretch">
+                <div className="flex min-h-0 flex-col justify-between">
                   <div>
                     <MetaLabel className="block mb-2">Operation theater</MetaLabel>
-                    <MapName className="block text-xl">{latestHighlightRaid.map}</MapName>
-                    <Caption className="mt-2 block">{latestHighlightRaid.mode} mode</Caption>
+                    <p className="type-heading text-primary text-[0.9375rem] sm:text-base">
+                      <MapName className="inline">{latestHighlightRaid.map}</MapName>
+                      <span className="text-muted font-normal"> : </span>
+                      <span className="text-secondary font-medium">{latestHighlightRaid.mode} mode</span>
+                    </p>
                   </div>
                   <div className="mt-6">
-                    <MetaLabel className="block mb-2">Net result</MetaLabel>
+                    <MetaLabel tone="accent" className="overview-net-result-label block mb-2">
+                      Net result
+                    </MetaLabel>
                     <DisplayValue
                       size="xl"
                       tone={latestHighlightRaid.netProfit >= 0 ? 'positive' : 'negative'}
@@ -307,21 +375,33 @@ export function Overview({ onRaidClick }: OverviewProps) {
                     </DisplayValue>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 content-start gap-px border border-abi-border bg-abi-border">
-                  <DossierMetric label="Kills" value={String(latestHighlightRaid.kills)} />
-                  <DossierMetric label="Duration" value={formatDuration(latestHighlightRaid.duration)} />
+                <div className="grid h-full min-h-0 grid-cols-2 grid-rows-2 gap-px border border-abi-border bg-abi-border">
+                  <DossierMetric
+                    label="Kills"
+                    value={String(latestHighlightRaid.kills)}
+                    className="overview-dossier-stat-cell"
+                  />
+                  <div className="overview-dossier-stat-cell">
+                    <MetaLabel className="block mb-2">Reds collections</MetaLabel>
+                    {raidHasRedsCollection(latestHighlightRaid) ? (
+                      <Badge variant="success">Brought out</Badge>
+                    ) : (
+                      <Badge variant="danger">Not found</Badge>
+                    )}
+                  </div>
                   <DossierMetric
                     label="ROI"
                     value={formatPercentage(latestHighlightRaid.roi)}
                     tone={latestHighlightRaid.roi >= 0 ? 'positive' : 'negative'}
+                    className="overview-dossier-stat-cell"
                   />
-                  <div className="bg-abi-bg-card p-3">
+                  <div className="overview-dossier-stat-cell">
                     <MetaLabel className="block mb-2">Extraction</MetaLabel>
                     <StatusBadge status={latestHighlightRaid.status} />
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-abi-border/70 pt-4">
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-abi-border/70 pt-4">
                 <Caption tone="secondary">
                   Reason: {latestHighlight?.reason ?? latestHighlightRaid.highlightReason ?? 'Notable operation'}
                 </Caption>
@@ -341,10 +421,13 @@ export function Overview({ onRaidClick }: OverviewProps) {
               description="Complete raids with decisive profit, kills, or rare loot to generate your first highlighted operation."
             />
           )}
-        </Panel></StaggerItem>
+        </Panel>
+          </StaggerItem>
 
-        <StaggerItem><Panel title="Best session" subtitle="Peak operational window" variant="flat">          {bestSession ? (
-            <div className="flex h-full flex-col">
+          <StaggerItem className="flex h-full min-h-0 flex-col">
+            <Panel title="Best session" subtitle="Peak operational window" variant="flat" className="flex h-full min-h-0 flex-1 flex-col">
+          {bestSession ? (
+            <div className="flex min-h-0 flex-1 flex-col">
               <div className="flex flex-wrap items-center gap-3 border-b border-abi-border/70 pb-4">
                 <Badge variant="success" className="inline-flex items-center gap-1">
                   <TrendingUp size={10} />
@@ -370,9 +453,20 @@ export function Overview({ onRaidClick }: OverviewProps) {
                   tone={bestSession.totalProfit >= 0 ? 'positive' : 'negative'}
                 />
               </div>
-              <Caption tone="muted" className="mt-auto border-t border-abi-border/70 pt-4">
-                Session window: {formatDuration(Math.round((bestSession.endTime - bestSession.startTime) / 60000))}
-              </Caption>
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-abi-border/70 pt-4">
+                <Caption tone="muted">
+                  Session window: {formatDuration(Math.round((bestSession.endTime - bestSession.startTime) / 60000))}
+                </Caption>
+                {onSessionNavigate && (
+                  <button
+                    type="button"
+                    onClick={() => onSessionNavigate(bestSession.id)}
+                    className="inline-flex items-center gap-1.5 type-caption text-accent hover:text-primary transition-colors"
+                  >
+                    Inspect session <ChevronRight size={13} />
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <TacticalEmptyState
@@ -381,14 +475,16 @@ export function Overview({ onRaidClick }: OverviewProps) {
               description="Complete connected raid operations to establish a session record."
             />
           )}
-        </Panel></StaggerItem>
+            </Panel>
+          </StaggerItem>
         </StaggerContainer>
       </section>
       </RevealSection>
 
       <RevealSection delay={0.08}>
       <section className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-[0.85fr_1.5fr]">
-        <Panel title="Economy snapshot" subtitle="Resource allocation" variant="standard">          <div className="space-y-4">
+        <Panel title="Economy snapshot" subtitle="Resource allocation" variant="standard">          <div>
+            <div className="space-y-4">
             <EconomyIndicator
               label="Ammo allocation"
               value={totalAmmoSpent}
@@ -401,7 +497,8 @@ export function Overview({ onRaidClick }: OverviewProps) {
               total={totalAmmoSpent + totalConsumablesSpent}
               tone="warning"
             />
-            <div className="grid grid-cols-2 gap-px border border-abi-border bg-abi-border">
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-px border border-abi-border bg-abi-border">
               <DossierMetric
                 label="Average net"
                 value={formatCurrency(analytics.lifetimeProfit / (analytics.totalRaids || 1))}
@@ -425,7 +522,15 @@ export function Overview({ onRaidClick }: OverviewProps) {
           </div>
         </Panel>
 
-        <Panel title="Recent operations" subtitle="Latest field log" variant="standard">
+        <Panel
+          title="Recent operations"
+          subtitle={
+            raids.length > RECENT_OPERATIONS_LIMIT
+              ? `Latest ${RECENT_OPERATIONS_LIMIT} of ${formatNumber(raids.length)} logged`
+              : 'Latest field log'
+          }
+          variant="standard"
+        >
           {recentRaids.length === 0 ? (
             <TacticalEmptyState
               icon={<MapPin size={30} />}
@@ -433,7 +538,7 @@ export function Overview({ onRaidClick }: OverviewProps) {
               description="Log your first raid to populate mission control with field intelligence."
             />
           ) : (
-            <div className="max-h-[340px] overflow-y-auto">
+            <div>
               <StaggerList>
               {recentRaids.map((raid) => (
                 <button
@@ -517,7 +622,7 @@ function Panel({
           <div className="corner-accent bottom-right" />
         </>
       )}
-      <div className="overview-panel-header mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
+      <div className="overview-panel-header mb-4 flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-1 pb-3">
         <h2 id={id} className="type-heading text-primary">{title}</h2>
         {subtitle && <Caption tone="muted">{subtitle}</Caption>}
       </div>
@@ -543,25 +648,34 @@ function StatusReadout({
   );
 }
 
-function Sparkline({ values }: { values: number[] }) {
-  if (values.length < 2) return null;
-  const positive = values[values.length - 1] >= values[0];
-  return (
-    <div className="w-full h-7 mt-3 opacity-80">
-      <SparklineDraw values={values} width={120} height={28} positive={positive} className="w-full h-full" />
-    </div>
-  );
-}
-
 function SecondaryMetric({
   value,
   tone,
   detail,
+  hero = false,
 }: {
   value: number;
   tone: Tone;
   detail: string;
+  hero?: boolean;
 }) {
+  if (hero) {
+    return (
+      <div className="relative flex h-full min-h-[168px] flex-col justify-between px-4 py-3 sm:px-5 sm:py-4">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <TrendingUp size={14} className="text-accent shrink-0" aria-hidden />
+            <MetaLabel tone="accent">Average ROI</MetaLabel>
+          </div>
+          <DisplayValue size="xl" tone={tone}>
+            <AnimatedStatValue value={value} format={formatPercentage} />
+          </DisplayValue>
+        </div>
+        <Caption tone="secondary" className="mt-4 block uppercase">{detail}</Caption>
+      </div>
+    );
+  }
+
   return (
     <div className="hud-card overview-panel-static h-full min-h-[156px] p-4 sm:p-5">
       <div className="flex h-full flex-col justify-between">
@@ -577,22 +691,74 @@ function SecondaryMetric({
   );
 }
 
-function SupportingMetric({
-  label,
-  value,
-  detail,
+function PerformanceSidecar({
+  extractionRate,
+  lootFromExtracted,
+  operationsLogged,
+  outcomeDetail,
+  streakNote,
+  streakTone,
 }: {
-  label: string;
-  value: string;
-  detail: string;
+  extractionRate: number;
+  lootFromExtracted: number;
+  operationsLogged: number;
+  outcomeDetail: string;
+  streakNote: string | null;
+  streakTone: Tone;
 }) {
+  const extractTone: Tone =
+    extractionRate >= 50 ? 'positive' : extractionRate > 0 ? 'warning' : 'secondary';
+  const barWidth = Math.max(0, Math.min(extractionRate, 100));
+
   return (
-    <div className="overview-panel-flat px-4 py-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <MetaLabel>{label}</MetaLabel>
-        <DataValue tone="primary" className="text-base">{value}</DataValue>
+    <div className="overview-panel-flat flex h-full min-h-[168px] flex-col justify-center px-4 py-3 sm:px-5 sm:py-4 lg:rounded-none">
+      <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <MetaLabel>Extraction rate</MetaLabel>
+          <DataValue tone={extractTone} className="text-base">
+            {formatPercentage(extractionRate)}
+          </DataValue>
+        </div>
+        <div className="mt-2 h-px w-full bg-abi-border relative overflow-hidden">
+          <AnimatedBar
+            widthPercent={barWidth}
+            className={`absolute inset-y-0 left-0 h-px ${
+              extractTone === 'positive' ? 'bg-abi-success' : extractTone === 'warning' ? 'bg-abi-warning' : 'bg-abi-border'
+            }`}
+          />
+        </div>
+        <Caption tone="muted" className="mt-2 block uppercase">
+          {formatCurrency(lootFromExtracted)} loot from extracted ops
+        </Caption>
       </div>
-      <Caption tone="muted" className="mt-1.5 block uppercase">{detail}</Caption>
+
+      <div className="my-3 border-t border-abi-border/70" />
+
+      <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <MetaLabel>Operations logged</MetaLabel>
+          <DataValue tone="primary" className="text-base">
+            {formatNumber(operationsLogged)}
+          </DataValue>
+        </div>
+        <Caption tone="muted" className="mt-1.5 block uppercase">{outcomeDetail}</Caption>
+        {streakNote && (
+          <div className="mt-2">
+            <Badge
+              variant={
+                streakTone === 'positive'
+                  ? 'success'
+                  : streakTone === 'warning'
+                    ? 'warning'
+                    : 'default'
+              }
+              size="sm"
+            >
+              {streakNote}
+            </Badge>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -600,35 +766,126 @@ function SupportingMetric({
 function PrimaryMetric({
   value,
   tone,
-  spark,
+  points,
+  minY,
+  maxY,
+  onRaidClick,
 }: {
   value: number;
   tone: Tone;
-  spark: number[];
+  points: ProfitCurvePoint[];
+  minY: number;
+  maxY: number;
+  onRaidClick: (raidId: string) => void;
 }) {
+  const [activePoint, setActivePoint] = useState<ProfitCurvePoint | null>(null);
+  const handleActiveChange = useCallback((point: ProfitCurvePoint | null) => {
+    setActivePoint(point);
+  }, []);
+
   return (
-    <div className="hud-card overview-panel-static overview-panel-primary min-h-[156px] p-4 sm:p-5 relative overflow-hidden border-abi-orange/35">
+    <div className="hud-card overview-panel-static overview-panel-primary overview-lifetime-profit relative min-h-[312px] w-full overflow-hidden border-abi-orange/35 p-5 sm:p-6">
       <div className="corner-accent top-left" />
       <div className="corner-accent top-right" />
       <div className="corner-accent bottom-left" />
       <div className="corner-accent bottom-right" />
-      <div className="flex h-full flex-col justify-between">
-        <div className="flex items-start justify-between gap-3">
+      <div className="relative z-10 grid h-full min-h-[280px] grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-stretch">
+        <div className="flex min-w-0 flex-col justify-between">
           <div>
-            <MetaLabel tone="accent" className="block mb-2">Lifetime profit</MetaLabel>
-            <DisplayValue size="xl" tone={tone}>
-              <AnimatedStatValue
-                value={formatCurrency(value)}
-                toneClass={tone === 'positive' ? 'text-positive' : tone === 'negative' ? 'text-negative' : undefined}
-              />
-            </DisplayValue>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <MetaLabel tone="accent" className="block mb-2">Lifetime profit</MetaLabel>
+                <DisplayValue size="xl" tone={tone}>
+                  <AnimatedStatValue
+                    value={formatCurrency(value)}
+                    toneClass={tone === 'positive' ? 'text-positive' : tone === 'negative' ? 'text-negative' : undefined}
+                  />
+                </DisplayValue>
+              </div>
+              <TrendingUp size={20} className="shrink-0 text-accent" />
+            </div>
+
+            <div
+              className={`overview-curve-readout mt-4 border px-3 py-2.5 transition-colors ${
+                activePoint
+                  ? 'border-abi-orange/40 bg-abi-orange/5'
+                  : 'border-abi-border/70 bg-abi-bg/40'
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              {activePoint ? (
+                <>
+                  <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <span className="type-label text-accent">{activePoint.label}</span>
+                    <span className="type-caption text-muted">
+                      {new Date(activePoint.timestamp).toLocaleDateString('en-US')}
+                    </span>
+                  </div>
+                  <p className="type-heading text-primary text-[0.8125rem]">
+                    {activePoint.map}
+                    <span className="text-muted font-normal"> · </span>
+                    <span className="text-secondary font-medium">{activePoint.mode}</span>
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div>
+                      <span className="type-label text-muted block">Raid net</span>
+                      <span
+                        className={`type-data text-sm ${
+                          activePoint.netProfit >= 0 ? 'text-positive' : 'text-negative'
+                        }`}
+                      >
+                        {formatCurrency(activePoint.netProfit)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="type-label text-muted block">Cumulative</span>
+                      <span
+                        className={`type-data text-sm ${
+                          activePoint.cumulative >= 0 ? 'text-positive' : 'text-negative'
+                        }`}
+                      >
+                        {formatCurrency(activePoint.cumulative)}
+                      </span>
+                    </div>
+                  </div>
+                  <Caption tone="secondary" className="mt-2 block uppercase">
+                    {activePoint.status === 'EXTRACTED'
+                      ? 'Extracted'
+                      : activePoint.status === 'DIED'
+                        ? 'KIA'
+                        : activePoint.status}
+                    {' · Click chart to inspect'}
+                  </Caption>
+                </>
+              ) : (
+                <>
+                  <MetaLabel className="block mb-1">Operation probe</MetaLabel>
+                  <Caption tone="muted" className="block">
+                    Hover the cumulative line to inspect each raid at that point.
+                  </Caption>
+                </>
+              )}
+            </div>
           </div>
-          <TrendingUp size={17} className="text-accent shrink-0" />
+
+          <Caption tone="secondary" className="mt-4 max-w-md">
+            Cumulative result across all recorded operations
+            {points.length > 0 ? ` · ${points.length} ops` : ''}
+          </Caption>
         </div>
-        <div>
-          <Caption tone="secondary">Cumulative result across all recorded operations</Caption>
-          {spark.length > 1 && <Sparkline values={spark} />}
-        </div>
+
+        {points.length > 1 && (
+          <div className="relative min-h-[160px] lg:min-h-0">
+            <InteractiveCumulativeChart
+              points={points}
+              minY={minY}
+              maxY={maxY}
+              onRaidClick={onRaidClick}
+              onActiveChange={handleActiveChange}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -680,13 +937,15 @@ function DossierMetric({
   label,
   value,
   tone = 'primary',
+  className = '',
 }: {
   label: string;
   value: string;
   tone?: Tone;
+  className?: string;
 }) {
   return (
-    <div className="bg-abi-bg-card p-3">
+    <div className={className ? className : 'bg-abi-bg-card p-3'}>
       <MetaLabel className="block mb-2">{label}</MetaLabel>
       <DataValue tone={tone}>{value}</DataValue>
     </div>

@@ -84,11 +84,11 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Oxanium Variable', 'Oxanium', 'system-ui', 'sans-serif'],
-        display: ['Oxanium Variable', 'Oxanium', 'system-ui', 'sans-serif'],
-        orbitron: ['Oxanium Variable', 'Oxanium', 'system-ui', 'sans-serif'],
-        rajdhani: ['Oxanium', 'sans-serif'],
-        mono: ['Oxanium Variable', 'Oxanium', 'system-ui', 'sans-serif'],
+        sans: ['Orbitron Variable', 'Orbitron', 'system-ui', 'sans-serif'],
+        display: ['Orbitron Variable', 'Orbitron', 'system-ui', 'sans-serif'],
+        orbitron: ['Orbitron Variable', 'Orbitron', 'system-ui', 'sans-serif'],
+        rajdhani: ['Orbitron Variable', 'Orbitron', 'sans-serif'],
+        mono: ['Orbitron Variable', 'Orbitron', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         DEFAULT: '2px',

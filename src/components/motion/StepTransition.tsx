@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { MOTION_DURATION, MOTION_EASE } from './motionTokens';
 import { useReducedMotion } from './useReducedMotion';
@@ -83,13 +83,17 @@ interface ExpandPanelProps {
 
 export function ExpandPanel({ open, children, className = '' }: ExpandPanelProps) {
   const reduced = useReducedMotion();
+  const [settledOpen, setSettledOpen] = useState(false);
 
   if (reduced) {
     return open ? <div className={className}>{children}</div> : null;
   }
 
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence
+      initial={false}
+      onExitComplete={() => setSettledOpen(false)}
+    >
       {open && (
         <motion.div
           className={className}
@@ -97,7 +101,11 @@ export function ExpandPanel({ open, children, className = '' }: ExpandPanelProps
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: MOTION_DURATION.base, ease: MOTION_EASE }}
-          style={{ overflow: 'hidden' }}
+          style={{ overflow: settledOpen ? 'visible' : 'hidden' }}
+          onAnimationStart={() => setSettledOpen(false)}
+          onAnimationComplete={() => {
+            if (open) setSettledOpen(true);
+          }}
         >
           {children}
         </motion.div>

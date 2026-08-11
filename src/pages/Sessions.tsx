@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calendar,
   ChevronDown,
@@ -29,6 +29,8 @@ import type { Session, Raid } from '../types';
 
 interface SessionsProps {
   onRaidClick: (raidId: string) => void;
+  focusSessionId?: string | null;
+  onFocusSessionConsumed?: () => void;
 }
 
 interface DayGroup {
@@ -37,11 +39,41 @@ interface DayGroup {
   sessions: Session[];
 }
 
-export function Sessions({ onRaidClick }: SessionsProps) {
+export function Sessions({
+  onRaidClick,
+  focusSessionId = null,
+  onFocusSessionConsumed,
+}: SessionsProps) {
   const sessions = useAggregatedSessions();
   const raids = useRoiRaids();
   const summary = useSessionSummary();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [highlightSessionId, setHighlightSessionId] = useState<string | null>(null);
+  const focusHandledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!focusSessionId || focusHandledRef.current === focusSessionId) return;
+    focusHandledRef.current = focusSessionId;
+    setExpandedId(focusSessionId);
+    setHighlightSessionId(focusSessionId);
+
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .getElementById(`session-${focusSessionId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    const timer = window.setTimeout(() => {
+      setHighlightSessionId(null);
+      onFocusSessionConsumed?.();
+      focusHandledRef.current = null;
+    }, 3000);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [focusSessionId, onFocusSessionConsumed]);
 
   // Raids indexed by session, chronological within each deployment
   const raidsBySession = useMemo(() => {
@@ -124,6 +156,7 @@ export function Sessions({ onRaidClick }: SessionsProps) {
                       session={session}
                       raids={raidsBySession.get(session.id) ?? []}
                       expanded={expandedId === session.id}
+                      highlighted={highlightSessionId === session.id}
                       onToggle={() =>
                         setExpandedId(expandedId === session.id ? null : session.id)
                       }
@@ -151,12 +184,14 @@ function DeploymentCard({
   session,
   raids,
   expanded,
+  highlighted,
   onToggle,
   onRaidClick,
 }: {
   session: Session;
   raids: Raid[];
   expanded: boolean;
+  highlighted?: boolean;
   onToggle: () => void;
   onRaidClick: (raidId: string) => void;
 }) {
@@ -166,7 +201,7 @@ function DeploymentCard({
     : 0;
 
   return (
-    <div className="relative">
+    <div id={`session-${session.id}`} className="relative">
       {/* Timeline node */}
       <span
         aria-hidden
@@ -180,7 +215,7 @@ function DeploymentCard({
       <div
         className={`hud-card relative transition-colors ${
           expanded ? 'border-abi-orange/45' : ''
-        }`}
+        } ${highlighted ? 'animate-session-focus' : ''}`}
       >
         <button
           type="button"

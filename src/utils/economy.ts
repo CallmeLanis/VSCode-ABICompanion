@@ -1,4 +1,5 @@
 import type { Raid, RaidStatus, AmmoEntry, ConsumableEntry, GearRescueData, LootItem, Highlight, AppSettings, LootDBItem, LootSellAction, RoiMode } from '../types';
+import { LOOT_CONTACT_LABEL } from '../data/constants';
 
 /**
  * Economy Engine
@@ -108,7 +109,7 @@ export function getLootSellRecommendation(
     ? item.vendorPrices.reduce((best, vendor) => (vendor.price > best.price ? vendor : best))
     : null;
   const bestVendorPrice = bestVendor?.price ?? 0;
-  const bestVendorName = bestVendor?.vendor ?? '';
+  const bestVendorName = bestVendorPrice > 0 ? LOOT_CONTACT_LABEL : '';
 
   if (marketNet <= 0 && bestVendorPrice <= 0) {
     return { action: 'hold', marketNet, bestVendorPrice, bestVendorName };
@@ -264,6 +265,27 @@ export function formatDate(timestamp: number): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+/**
+ * Compact ledger date: MM/DD/YY
+ */
+export function formatCompactDate(timestamp: number): string {
+  const d = new Date(timestamp);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yy = String(d.getFullYear() % 100).padStart(2, '0');
+  return `${mm}/${dd}/${yy}`;
+}
+
+/**
+ * 24-hour clock time for compact tables (HH:mm)
+ */
+export function formatTime24(timestamp: number): string {
+  const d = new Date(timestamp);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${min}`;
 }
 
 /**

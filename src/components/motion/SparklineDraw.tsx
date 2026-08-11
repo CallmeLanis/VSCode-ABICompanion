@@ -8,6 +8,7 @@ interface SparklineDrawProps {
   height?: number;
   className?: string;
   positive?: boolean;
+  glow?: boolean;
 }
 
 export function SparklineDraw({
@@ -16,6 +17,7 @@ export function SparklineDraw({
   height = 48,
   className = '',
   positive = true,
+  glow = false,
 }: SparklineDrawProps) {
   const reduced = useReducedMotion();
 
@@ -35,22 +37,26 @@ export function SparklineDraw({
 
   const pathD = `M ${points.join(' L ')}`;
   const stroke = positive ? 'var(--text-positive)' : 'var(--text-negative)';
+  const strokeWidth = glow ? 2.75 : 2;
+  const svgClass = [className, glow ? 'overview-sparkline-glow' : ''].filter(Boolean).join(' ');
 
   if (reduced) {
     return (
-      <svg width={width} height={height} className={className} aria-hidden>
-        <path d={pathD} fill="none" stroke={stroke} strokeWidth="2" />
+      <svg width={width} height={height} className={svgClass} aria-hidden>
+        <path d={pathD} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
 
   return (
-    <svg width={width} height={height} className={className} aria-hidden>
+    <svg width={width} height={height} className={svgClass} aria-hidden>
       <motion.path
         d={pathD}
         fill="none"
         stroke={stroke}
-        strokeWidth="2"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
         initial={{ pathLength: 0, opacity: 0 }}
         animate={{ pathLength: 1, opacity: 1 }}
         transition={{ duration: MOTION_DURATION.chart, ease: 'easeOut' }}

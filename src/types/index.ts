@@ -68,6 +68,9 @@ export interface Raid {
   deaths: number;
   assists?: number;
 
+  /** Mission debrief RED checkbox — red item brought out of the raid. */
+  redItemFound?: boolean;
+
   // Calculated fields
   investment: number;
   netProfit: number;
@@ -166,9 +169,22 @@ export interface AnalyticsCache {
   bestSession?: Session;
 }
 
+export interface ProfitCurvePoint {
+  index: number;
+  label: string;
+  raidId: string;
+  map: string;
+  mode: string;
+  status: RaidStatus;
+  timestamp: number;
+  netProfit: number;
+  cumulative: number;
+}
+
 export interface ProfitCurveData {
   values: number[];
   labels: string[];
+  points: ProfitCurvePoint[];
   minY: number;
   maxY: number;
   yAxisTicks: number[];

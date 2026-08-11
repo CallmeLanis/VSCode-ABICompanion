@@ -16,7 +16,8 @@ import { addLootDBItem, updateLootDBItem, deleteLootDBItem, getStoredSettings } 
 import { useLootDBItems, useRaids } from '../hooks/useStorageQuery';
 import { calculateLootIntelligence } from '../utils/analytics';
 import { formatCurrency } from '../utils/economy';
-import { RARITY_COLORS } from '../data/constants';
+import { RARITY_COLORS, LOOT_CONTACT_LABEL } from '../data/constants';
+import { MEDIC_SUBTYPE_OPTIONS, GRENADE_SUBTYPE_OPTIONS } from '../data/consumables';
 import {
   Plus,
   Search,
@@ -27,7 +28,6 @@ import {
   TrendingDown,
   SortDesc,
   Database,
-  Crosshair,
   ArrowDownToLine,
 } from 'lucide-react';
 import type { LootDBItem, LootDBRecord, LootSellAction } from '../types';
@@ -44,28 +44,26 @@ const RARITY_OPTIONS = [
   { value: 'rare', label: 'Blue' },
   { value: 'epic', label: 'Purple' },
   { value: 'legendary', label: 'Gold' },
-  { value: 'red', label: 'Red' },
+  { value: 'red', label: 'Mythic' },
 ];
 
+const LOOTDB_TABLE_GRID = 'md:grid-cols-7';
+
 const TYPE_OPTIONS = [
-  { value: 'armor', label: 'Armor' },
-  { value: 'weapon', label: 'Weapon' },
   { value: 'ammo', label: 'Ammo' },
   { value: 'medic', label: 'Medic' },
   { value: 'grenade', label: 'Grenade' },
   { value: 'misc', label: 'Misc' },
 ];
 
-type SortField = 'name' | 'marketPrice' | 'foundCount' | 'totalEarnings' | 'lowestPrice';
+type SortField = 'name' | 'marketPrice' | 'lowestPrice';
 type RarityFilter = 'all' | LootDBItem['rarity'];
 type TypeFilter = 'all' | LootDBItem['type'];
-type ActionFilter = 'all' | LootSellAction;
+type ActionFilter = 'all' | Exclude<LootSellAction, 'hold'>;
 
 const SORT_LABELS: Record<SortField, string> = {
   name: 'Name',
   marketPrice: 'Market',
-  foundCount: 'Found',
-  totalEarnings: 'Earnings',
   lowestPrice: 'Lowest',
 };
 
@@ -84,15 +82,15 @@ const MISC_SUBTYPE_OPTIONS = [
   { value: 'electronics', label: 'Electronics' },
 ];
 
-const MEDIC_SUBTYPE_OPTIONS = [
-  { value: 'medicine', label: 'Medicine' },
-  { value: 'treatments', label: 'Treatments' },
-  { value: 'medkits', label: 'Medkits' },
-];
-
-const GRENADE_SUBTYPE_OPTIONS = [
-  { value: 'defend', label: 'Defend' },
-  { value: 'blast', label: 'Blast' },
+const AMMO_TIER_OPTIONS = [
+  { value: '0', label: 'T0' },
+  { value: '1', label: 'T1' },
+  { value: '2', label: 'T2' },
+  { value: '3', label: 'T3' },
+  { value: '4', label: 'T4' },
+  { value: '5', label: 'T5' },
+  { value: '6', label: 'T6' },
+  { value: '7', label: 'T7' },
 ];
 
 export function LootDB() {
@@ -147,12 +145,6 @@ export function LootDB() {
         case 'marketPrice':
           cmp = a.marketPrice - b.marketPrice;
           break;
-        case 'foundCount':
-          cmp = a.foundCount - b.foundCount;
-          break;
-        case 'totalEarnings':
-          cmp = a.totalEarnings - b.totalEarnings;
-          break;
         case 'lowestPrice':
           cmp = a.lowestPrice - b.lowestPrice;
           break;
@@ -164,7 +156,7 @@ export function LootDB() {
   }, [intelligence.records, search, rarityFilter, typeFilter, categoryFilter, actionFilter, sortField, sortDesc]);
 
   const cycleSort = () => {
-    const fields: SortField[] = ['name', 'marketPrice', 'foundCount', 'totalEarnings', 'lowestPrice'];
+    const fields: SortField[] = ['name', 'marketPrice', 'lowestPrice'];
     const currentIndex = fields.indexOf(sortField);
     if (currentIndex === fields.length - 1) {
       setSortField(fields[0]);
@@ -177,6 +169,10 @@ export function LootDB() {
       return;
     }
     setSortDesc(true);
+  };
+
+  const toggleActionFilter = (mode: Exclude<ActionFilter, 'all'>) => {
+    setActionFilter((prev) => (prev === mode ? 'all' : mode));
   };
 
   const { summary } = intelligence;
@@ -195,12 +191,42 @@ export function LootDB() {
       />
 
       <RevealSection immediate delay={0.04}>
-      <section aria-label="Loot summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <section aria-label="Loot summary" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <StaggerContainer className="contents xl:contents" immediate>
-          <StaggerItem><StatCard label="Catalog items" value={String(summary.totalItems)} subValue={`$${formatCurrency(summary.catalogMarketValue)} market value`} icon={<Database size={18} />} /></StaggerItem>
-          <StaggerItem><StatCard label="Tracked in ops" value={String(summary.trackedInRaids)} subValue={`${summary.totalFoundCount} total found`} icon={<Crosshair size={18} />} /></StaggerItem>
-          <StaggerItem><StatCard label="Sell to market" value={String(summary.sellToMarket)} subValue="After-tax beats vendor" icon={<ArrowDownToLine size={18} />} /></StaggerItem>
-          <StaggerItem><StatCard label="Sell to vendor" value={String(summary.sellToVendor)} subValue={summary.needsData > 0 ? `${summary.needsData} need pricing data` : 'Vendor beats market net'} icon={<Store size={18} />} /></StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Catalog items"
+              value={String(summary.totalItems)}
+              subValue={`$${formatCurrency(summary.catalogMarketValue)} market value`}
+              icon={<Database size={18} />}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Sell to market"
+              value={String(summary.sellToMarket)}
+              subValue="After-tax beats contact"
+              icon={<ArrowDownToLine size={18} />}
+              onClick={() => toggleActionFilter('market')}
+              glow={actionFilter === 'market'}
+              className={actionFilter === 'market' ? 'border-abi-orange/45' : ''}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Sell to contact"
+              value={String(summary.sellToVendor)}
+              subValue={
+                summary.needsData > 0
+                  ? `${summary.needsData} need pricing data`
+                  : 'Contact beats market net'
+              }
+              icon={<Store size={18} />}
+              onClick={() => toggleActionFilter('vendor')}
+              glow={actionFilter === 'vendor'}
+              className={actionFilter === 'vendor' ? 'border-abi-orange/45' : ''}
+            />
+          </StaggerItem>
         </StaggerContainer>
       </section>
       </RevealSection>
@@ -212,7 +238,12 @@ export function LootDB() {
             <div>
               <MetaLabel tone="accent" className="block mb-1">Inventory records</MetaLabel>
               <Caption tone="muted">
-                {filteredRecords.length} of {summary.totalItems} items · cross-referenced with raid loot
+                {filteredRecords.length} of {summary.totalItems} items
+                {actionFilter === 'market'
+                  ? ' · sell market filter'
+                  : actionFilter === 'vendor'
+                    ? ' · sell contact filter'
+                    : ''}
               </Caption>
             </div>
             <div className="flex items-center gap-2">
@@ -276,30 +307,17 @@ export function LootDB() {
             ]}
             className="min-w-[160px]"
           />
-
-          <div className="filter-tabs">
-            {(['all', 'market', 'vendor', 'hold'] as ActionFilter[]).map(tab => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActionFilter(tab)}
-                className={`filter-tab ${actionFilter === tab ? 'active' : ''}`}
-              >
-                {tab === 'all' ? 'All actions' : tab === 'market' ? 'Market' : tab === 'vendor' ? 'Vendor' : 'Hold'}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Table header */}
-        <div className="hidden md:grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_48px] gap-3 px-4 py-2 border-b border-abi-border text-xs uppercase tracking-wider text-abi-text-dim font-mono sm:px-5">
+        <div
+          className={`hidden md:grid ${LOOTDB_TABLE_GRID} lootdb-inventory-grid gap-2 px-4 py-2 border-b border-abi-border text-xs uppercase tracking-wider text-abi-text-dim font-mono sm:px-5 text-center`}
+        >
           <div>Item</div>
           <div>Rarity</div>
           <div>Category</div>
-          <div className="text-right">Market</div>
-          <div className="text-right">Vendor</div>
-          <div className="text-right">Found</div>
-          <div className="text-right">Earnings</div>
+          <div>Market</div>
+          <div>{LOOT_CONTACT_LABEL}</div>
           <div>Action</div>
           <div />
         </div>
@@ -324,7 +342,7 @@ export function LootDB() {
               title={items.length === 0 ? 'No items in database' : 'No matching records'}
               description={
                 items.length === 0
-                  ? 'Add items to track market prices, vendor rates, and sell recommendations.'
+                  ? 'Add items to track market prices, contact rates, and sell recommendations.'
                   : 'Try clearing search or adjusting filters.'
               }
               action={
@@ -367,45 +385,52 @@ interface InventoryRowProps {
   onDelete: () => void;
 }
 
+function formatRarityLabel(rarity: LootDBItem['rarity']): string {
+  if (rarity === 'red') return 'MYTHIC';
+  return rarity;
+}
+
 function InventoryRow({ record, onEdit, onDelete }: InventoryRowProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_48px] gap-2 md:gap-3 px-4 py-3 items-center hover:bg-abi-bg-hover/40 transition-colors sm:px-5">
-      <div className="min-w-0">
+    <div
+      className={`grid grid-cols-1 ${LOOTDB_TABLE_GRID} lootdb-inventory-grid gap-2 px-4 py-3 items-center hover:bg-abi-bg-hover/40 transition-colors sm:px-5 md:text-center`}
+    >
+      <div className="lootdb-inventory-cell min-w-0">
         <p className={`font-semibold truncate ${RARITY_COLORS[record.rarity] ?? 'text-primary'}`}>
           {record.name}
         </p>
         <Caption tone="muted" className="truncate">{record.type}</Caption>
       </div>
 
-      <div className="flex md:block">
+      <div className="lootdb-inventory-cell flex md:flex md:justify-center min-w-0">
         <Caption tone="muted" className="md:hidden mr-2">Rarity</Caption>
-        <Badge variant="default" size="sm" className="capitalize">
-          {record.rarity}
+        <Badge variant="default" size="sm" className={`max-w-full truncate ${record.rarity === 'red' ? '' : 'capitalize'}`}>
+          {formatRarityLabel(record.rarity)}
         </Badge>
       </div>
 
-      <div className="min-w-0">
+      <div className="lootdb-inventory-cell min-w-0">
         <Caption tone="muted" className="md:hidden">Category</Caption>
         <p className="text-sm text-secondary truncate">{record.category}</p>
       </div>
 
-      <div className="flex md:block justify-between">
+      <div className="lootdb-inventory-cell flex md:block justify-between min-w-0">
         <Caption tone="muted" className="md:hidden">Market</Caption>
-        <div className="text-right">
-          <p className="text-sm font-semibold text-primary">${formatCurrency(record.marketPrice)}</p>
+        <div className="md:text-center min-w-0">
+          <p className="text-sm font-semibold text-primary tabular-nums">${formatCurrency(record.marketPrice)}</p>
           {record.marketNet > 0 && (
-            <Caption tone="muted">Net ${formatCurrency(record.marketNet)}</Caption>
+            <Caption tone="muted" className="truncate">Net ${formatCurrency(record.marketNet)}</Caption>
           )}
         </div>
       </div>
 
-      <div className="flex md:block justify-between">
-        <Caption tone="muted" className="md:hidden">Vendor</Caption>
-        <div className="text-right">
+      <div className="lootdb-inventory-cell flex md:block justify-between min-w-0">
+        <Caption tone="muted" className="md:hidden">{LOOT_CONTACT_LABEL}</Caption>
+        <div className="md:text-center min-w-0">
           {record.bestVendorPrice > 0 ? (
             <>
-              <p className="text-sm font-semibold text-positive">${formatCurrency(record.bestVendorPrice)}</p>
-              <Caption tone="muted" className="truncate">{record.bestVendorName}</Caption>
+              <p className="text-sm font-semibold text-positive tabular-nums">${formatCurrency(record.bestVendorPrice)}</p>
+              <Caption tone="muted" className="truncate">{LOOT_CONTACT_LABEL}</Caption>
             </>
           ) : (
             <Caption tone="muted">—</Caption>
@@ -413,29 +438,17 @@ function InventoryRow({ record, onEdit, onDelete }: InventoryRowProps) {
         </div>
       </div>
 
-      <div className="flex md:block justify-between">
-        <Caption tone="muted" className="md:hidden">Found</Caption>
-        <p className="text-sm text-right font-mono text-primary">{record.foundCount}</p>
-      </div>
-
-      <div className="flex md:block justify-between">
-        <Caption tone="muted" className="md:hidden">Earnings</Caption>
-        <p className={`text-sm text-right font-mono ${record.totalEarnings >= 0 ? 'text-positive' : 'text-negative'}`}>
-          ${formatCurrency(record.totalEarnings)}
-        </p>
-      </div>
-
-      <div className="flex md:block items-center gap-2">
+      <div className="lootdb-inventory-cell flex md:flex-col md:items-center md:justify-center gap-2 min-w-0">
         <Caption tone="muted" className="md:hidden">Action</Caption>
         <SellActionBadge action={record.action} />
         {record.lowestPrice > 0 && (
-          <Caption tone="muted" className="hidden md:flex items-center gap-1 mt-0.5">
-            <TrendingDown size={10} /> Low ${formatCurrency(record.lowestPrice)}
+          <Caption tone="muted" className="hidden md:flex items-center justify-center gap-1 truncate max-w-full">
+            <TrendingDown size={10} className="shrink-0" /> Low ${formatCurrency(record.lowestPrice)}
           </Caption>
         )}
       </div>
 
-      <div className="flex gap-1 justify-end">
+      <div className="lootdb-inventory-cell flex gap-1 justify-end md:justify-center shrink-0">
         <button
           type="button"
           onClick={onEdit}
@@ -459,7 +472,7 @@ function InventoryRow({ record, onEdit, onDelete }: InventoryRowProps) {
 
 function SellActionBadge({ action }: { action: LootSellAction }) {
   if (action === 'vendor') {
-    return <Badge variant="success" size="sm">Sell vendor</Badge>;
+    return <Badge variant="success" size="sm">SELL CONTACT</Badge>;
   }
   if (action === 'market') {
     return <Badge variant="default" size="sm" className="text-accent border-accent/40">Sell market</Badge>;
@@ -494,9 +507,9 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
       case 'misc':
         return MISC_SUBTYPE_OPTIONS;
       case 'medic':
-        return MEDIC_SUBTYPE_OPTIONS;
+        return [...MEDIC_SUBTYPE_OPTIONS];
       case 'grenade':
-        return GRENADE_SUBTYPE_OPTIONS;
+        return [...GRENADE_SUBTYPE_OPTIONS];
       default:
         return [];
     }
@@ -506,22 +519,40 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
   const vendorBest = vendorPrice ?? 0;
   const recommendVendor = vendorBest > 0 && vendorBest > marketReturn;
 
-  // Ammo catalog: category follows caliber; type name lives in name/tier
+  // Ammo: category = caliber. Misc: free-text category. Medic/Grenade: subtype or type label.
   const resolvedCategory =
     type === 'ammo'
       ? (caliber.trim() || 'Ammo')
-      : category;
+      : type === 'misc'
+        ? category
+        : (subtype
+          ? (getSubtypeOptions().find((o) => o.value === subtype)?.label ?? subtype)
+          : (TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type));
 
-  const resolvedTier = type === 'ammo' ? (tier.trim() || name.trim()) : (tier || undefined);
+  const normalizedAmmoTier = (() => {
+    const raw = tier.trim();
+    if (/^[0-7]$/.test(raw)) return raw;
+    const match = raw.match(/^T([0-7])$/i);
+    return match ? match[1] : '';
+  })();
+
+  const resolvedTier =
+    type === 'ammo'
+      ? (normalizedAmmoTier || undefined)
+      : (tier.trim() || undefined);
 
   const canSave =
     Boolean(name.trim()) &&
-    (type === 'ammo' ? Boolean(caliber.trim()) : Boolean(category.trim()));
+    (type === 'ammo'
+      ? Boolean(caliber.trim()) && Boolean(normalizedAmmoTier)
+      : type === 'misc'
+        ? Boolean(category.trim())
+        : true);
 
   const handleSave = () => {
     const savedVendorPrices =
       (vendorPrice ?? 0) > 0
-        ? [{ vendor: item?.vendorPrices?.[0]?.vendor || 'Vendor', price: vendorPrice ?? 0 }]
+        ? [{ vendor: LOOT_CONTACT_LABEL, price: vendorPrice ?? 0 }]
         : [];
 
     const newItem: LootDBItem = {
@@ -537,7 +568,7 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
       vendorPrices: savedVendorPrices,
       lowestPrice: lowestPrice ?? 0,
       lowestPriceHistory: item?.lowestPriceHistory || [],
-      bestSellTo: recommendVendor ? 'Vendor' : 'Market',
+      bestSellTo: recommendVendor ? LOOT_CONTACT_LABEL : 'Market',
       notes: item?.notes,
     };
     onSave(newItem);
@@ -550,7 +581,11 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
       setRarity(item.rarity);
       setType(item.type || 'misc');
       setSubtype(item.subtype || '');
-      setTier(item.tier || '');
+      const rawTier = item.tier || '';
+      const tierDigit = /^[0-7]$/.test(rawTier)
+        ? rawTier
+        : rawTier.match(/^T([0-7])$/i)?.[1] ?? '';
+      setTier(item.type === 'ammo' ? tierDigit : rawTier);
       setCaliber(item.caliber || '');
       setMarketPrice(item.marketPrice);
       setLowestPrice(item.lowestPrice);
@@ -565,10 +600,10 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
           label="Item Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g., GPU"
+          placeholder={type === 'ammo' ? 'e.g., 7N37 / M80' : 'e.g., GPU'}
         />
 
-        {type !== 'ammo' && (
+        {type === 'misc' && (
           <Input
             label="Category"
             value={category}
@@ -594,12 +629,15 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
               setCaliber('');
               setTier('');
             }
+            if (e.target.value !== 'misc') {
+              setCategory('');
+            }
           }}
           options={TYPE_OPTIONS}
         />
 
         {/* Dynamic Subtype Field */}
-        {type !== 'ammo' && type !== 'weapon' && type !== 'armor' && (
+        {type !== 'ammo' && (
           <Select
             label="Subtype"
             value={subtype}
@@ -608,7 +646,7 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
           />
         )}
 
-        {/* Ammo-specific fields — catalog is free-entry (no hardcoded calibers) */}
+        {/* Ammo-specific fields — cartridge name is Item Name; tier is T0–T7 */}
         {type === 'ammo' && (
           <>
             <Input
@@ -617,14 +655,17 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
               onChange={(e) => setCaliber(e.target.value)}
               placeholder="e.g., 7.62x51"
             />
-            <Input
-              label="Ammo Type"
-              value={tier}
+            <Select
+              label="Ammo Tier"
+              value={normalizedAmmoTier}
               onChange={(e) => setTier(e.target.value)}
-              placeholder="e.g., M80 (defaults to item name)"
+              options={[
+                { value: '', label: 'Select tier (0–7)' },
+                ...AMMO_TIER_OPTIONS,
+              ]}
             />
             <Caption tone="muted" className="block -mt-2">
-              Market Price is used as cost per round when logging raids.
+              Item Name is the cartridge (e.g. 7N37). Market Price is cost per round when logging raids.
             </Caption>
           </>
         )}
@@ -637,7 +678,7 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
         />
 
         <NumberInput
-          label="Vendor Price"
+          label="Contact Price"
           value={vendorPrice}
           onChange={setVendorPrice}
           min={0}
@@ -648,7 +689,7 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
           <div className={`p-3 rounded-lg border ${recommendVendor ? 'bg-green-900/20 border-green-700/30' : 'bg-blue-900/20 border-blue-700/30'}`}>
             <p className="text-xs text-abi-text-dim mb-1">Sell Recommendation</p>
             <p className={`text-sm font-semibold ${recommendVendor ? 'text-green-400' : 'text-blue-400'}`}>
-              {recommendVendor ? '↑ Sell to Vendor' : '↓ Sell to Market'}
+              {recommendVendor ? `↑ Sell to ${LOOT_CONTACT_LABEL}` : '↓ Sell to Market'}
             </p>
             <div className="flex justify-between mt-2 text-xs">
               <span className="text-abi-text-muted">Market (after tax):</span>
@@ -656,7 +697,7 @@ function LootDBItemModal({ isOpen, onClose, item, onSave }: LootDBItemModalProps
             </div>
             {vendorBest > 0 && (
               <div className="flex justify-between text-xs">
-                <span className="text-abi-text-muted">Vendor:</span>
+                <span className="text-abi-text-muted">{LOOT_CONTACT_LABEL}:</span>
                 <span className="text-green-400">${formatCurrency(vendorBest)}</span>
               </div>
             )}

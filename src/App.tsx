@@ -19,6 +19,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('overview');
   const [selectedRaidId, setSelectedRaidId] = useState<string | null>(null);
   const [showRaidPopup, setShowRaidPopup] = useState(false);
+  const [focusSessionId, setFocusSessionId] = useState<string | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
@@ -37,6 +38,11 @@ export default function App() {
     setShowRaidPopup(true);
   };
 
+  const handleSessionNavigate = (sessionId: string) => {
+    setFocusSessionId(sessionId);
+    setCurrentPage('sessions');
+  };
+
   const handleNavigate = (page: Page) => {
     // Dashboard duplicated Economy — fold into Economy
     setCurrentPage(page === 'dashboard' ? 'economy' : page);
@@ -45,14 +51,25 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'overview':
-        return <Overview onRaidClick={handleRaidClick} />;
+        return (
+          <Overview
+            onRaidClick={handleRaidClick}
+            onSessionNavigate={handleSessionNavigate}
+          />
+        );
       case 'dashboard':
       case 'economy':
         return <Economy />;
       case 'raids':
         return <RaidsPage onRaidClick={handleRaidClick} />;
       case 'sessions':
-        return <Sessions onRaidClick={handleRaidClick} />;
+        return (
+          <Sessions
+            onRaidClick={handleRaidClick}
+            focusSessionId={focusSessionId}
+            onFocusSessionConsumed={() => setFocusSessionId(null)}
+          />
+        );
       case 'highlights':
         return <Highlights onRaidClick={handleRaidClick} />;
       case 'lootdb':

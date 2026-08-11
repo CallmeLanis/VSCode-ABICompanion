@@ -6,6 +6,8 @@
 
 import type { Raid, Session, Highlight, LootDBItem, LootItem, AmmoEntry, ConsumableEntry, RaidStatus, RaidMode } from '../types';
 import { generateId, getSessionId, migrateRaidData, getRaids, getHighlights, getLootDBItems } from './storage';
+import { normalizeLootDBItem } from './lootDBNormalize';
+import { LOOT_CONTACT_LABEL } from '../data/constants';
 
 export interface MergeResult {
   success: boolean;
@@ -429,7 +431,7 @@ function validateLootDBItem(item: unknown): { valid: LootDBItem | null; error?: 
         : [],
       lowestPrice: typeof ldb.lowestPrice === 'number' ? ldb.lowestPrice : (ldb.marketPrice as number),
       lowestPriceHistory: [],
-      bestSellTo: typeof ldb.bestSellTo === 'string' ? ldb.bestSellTo : 'Vendor',
+      bestSellTo: typeof ldb.bestSellTo === 'string' ? ldb.bestSellTo : LOOT_CONTACT_LABEL,
       notes: typeof ldb.notes === 'string' ? ldb.notes : undefined,
     },
   };
@@ -525,12 +527,11 @@ export function mergeImportedData(
         continue;
       }
 
-      const item = validation.valid;
+      const item = normalizeLootDBItem(validation.valid);
       const existingItem = existingLootdb.find(l => l.id === item.id || l.name.toLowerCase() === item.name.toLowerCase());
 
       if (existingItem) {
-        // Update existing item with new price data if available
-        const updated = { ...existingItem, ...item };
+        const updated = normalizeLootDBItem({ ...existingItem, ...item });
         lootdbToMerge.push(updated);
         summary.lootdb.updated++;
       } else {

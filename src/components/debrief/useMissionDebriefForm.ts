@@ -90,6 +90,7 @@ export function useMissionDebriefForm(onRaidLogged?: (raidId: string) => void) {
       lootValue: lootValue ?? 0,
       kills: kills ?? 0,
       deaths: 0,
+      redItemFound: isRed,
       investment: realizedEconomy.investment,
       netProfit: realizedEconomy.netProfit,
       roi: realizedEconomy.roi,
@@ -106,6 +107,7 @@ export function useMissionDebriefForm(onRaidLogged?: (raidId: string) => void) {
       gearRescue,
       lootValue,
       kills,
+      isRed,
       realizedEconomy,
       settings.sessionDuration,
     ]

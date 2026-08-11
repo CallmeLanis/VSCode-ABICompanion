@@ -1,4 +1,6 @@
 import type { Raid, Session, Highlight, LootDBItem, LootItem, AppSettings, AnalyticsCache } from '../types';
+import { LOOT_CONTACT_LABEL } from '../data/constants';
+import { normalizeLootDBItems } from './lootDBNormalize';
 import { invalidateQueries } from './dataStore';
 
 const STORAGE_KEYS = {
@@ -121,7 +123,13 @@ export function deleteHighlight(raidId: string): void {
 
 // LootDB
 export function getLootDBItems(): LootDBItem[] {
-  return getItem<LootDBItem[]>(STORAGE_KEYS.LOOTDB, []);
+  const raw = getItem<LootDBItem[]>(STORAGE_KEYS.LOOTDB, []);
+  const { items, changed } = normalizeLootDBItems(raw);
+  if (changed) {
+    setItem(STORAGE_KEYS.LOOTDB, items);
+    invalidateQueries('lootdb');
+  }
+  return items;
 }
 
 export function saveLootDBItems(items: LootDBItem[]): void {
@@ -151,6 +159,55 @@ export function deleteLootDBItem(itemId: string): void {
 
 export function getLootDBItemByName(name: string): LootDBItem | undefined {
   return getLootDBItems().find(i => i.name.toLowerCase() === name.toLowerCase());
+}
+
+/** Upsert catalog seed by name. Updates type/subtype/vendor on match; inserts missing. */
+export function upsertLootCatalogSeed(seedItems: LootDBItem[]): {
+  added: number;
+  updated: number;
+  total: number;
+} {
+  const items = getLootDBItems();
+  const byName = new Map(items.map((item) => [item.name.toLowerCase(), item]));
+  let added = 0;
+  let updated = 0;
+
+  for (const seed of seedItems) {
+    const key = seed.name.toLowerCase();
+    const existing = byName.get(key);
+    if (existing) {
+      const next: LootDBItem = {
+        ...existing,
+        category: seed.category,
+        type: seed.type,
+        subtype: seed.subtype,
+        rarity: existing.rarity || seed.rarity,
+        marketPrice: seed.marketPrice > 0 ? seed.marketPrice : (existing.marketPrice > 0 ? existing.marketPrice : 0),
+        vendorPrices: seed.vendorPrices.length
+          ? seed.vendorPrices.map((entry) => ({ ...entry, vendor: LOOT_CONTACT_LABEL }))
+          : existing.vendorPrices,
+        bestSellTo: seed.bestSellTo || existing.bestSellTo,
+      };
+      const index = items.findIndex((i) => i.id === existing.id);
+      if (index !== -1) items[index] = next;
+      byName.set(key, next);
+      updated += 1;
+    } else {
+      items.push(seed);
+      byName.set(key, seed);
+      added += 1;
+    }
+  }
+
+  saveLootDBItems(items);
+  return { added, updated, total: seedItems.length };
+}
+
+/** Load built-in medic + grenade catalog (upsert by name). */
+export function loadBasicLootDB(
+  seedItems: LootDBItem[],
+): { added: number; updated: number; total: number } {
+  return upsertLootCatalogSeed(seedItems);
 }
 
 // Settings

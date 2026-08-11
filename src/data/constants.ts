@@ -1,4 +1,4 @@
-import type { MapData, GameMode, ConsumableTemplate, Vendor } from '../types';
+import type { MapData, GameMode, Vendor } from '../types';
 
 // Maps
 export const MAPS: MapData[] = [
@@ -17,26 +17,14 @@ export const GAME_MODES: GameMode[] = [
   { id: 'forbidden', name: 'Forbidden', shortName: 'Forb' },
 ];
 
-// Ammo catalog lives in LootDB (localStorage). Mission Debrief reads type=ammo
-// entries and uses marketPrice as costPerRound.
+// Ammo + consumables catalogs live in LootDB (localStorage).
+// Mission Debrief Ammo picker: type=ammo, unit cost = marketPrice or vendor when market is 0.
+// Mission Debrief Consumables picker: type=medic|grenade, same unit-cost rule.
+// Medic subtypes: medicine | medkits | treatments | stimulants (see data/consumables.ts).
+// Grenade subtypes: defend | blast.
 
-// Consumables
-export const CONSUMABLES: ConsumableTemplate[] = [
-  // Treatments
-  { id: 'bandage', name: 'Bandage', type: 'treatment', baseCost: 1000 },
-  { id: 'ifix', name: 'IFAK', type: 'treatment', baseCost: 3500 },
-  { id: 'medkit', name: 'Medkit', type: 'treatment', baseCost: 8000 },
-  { id: 'painkillers', name: 'Painkillers', type: 'treatment', baseCost: 500 },
-  { id: 'adrenaline', name: 'Adrenaline', type: 'treatment', baseCost: 2500 },
-  { id: 'splint', name: 'Splint', type: 'treatment', baseCost: 2000 },
-  { id: 'surgkit', name: 'Surgical Kit', type: 'treatment', baseCost: 15000 },
-  // Throwables
-  { id: 'frag_grenade', name: 'Frag Grenade', type: 'throwable', baseCost: 12000 },
-  { id: 'stun_grenade', name: 'Stun Grenade', type: 'throwable', baseCost: 8000 },
-  { id: 'smoke_grenade', name: 'Smoke Grenade', type: 'throwable', baseCost: 3000 },
-  { id: 'molotov', name: 'Molotov', type: 'throwable', baseCost: 5000 },
-  { id: 'c4', name: 'C4', type: 'throwable', baseCost: 25000 },
-];
+/** Single display/storage label for LootDB vendor/contact price column. */
+export const LOOT_CONTACT_LABEL = 'CONTACT';
 
 // Vendors
 export const VENDORS: Vendor[] = [

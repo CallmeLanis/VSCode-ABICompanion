@@ -87,16 +87,28 @@ export function calculateProfitCurve(raids: Raid[] = getRaids()): ProfitCurveDat
   const sorted = [...raids].sort((a, b) => a.timestamp - b.timestamp);
 
   let cumulative = 0;
-  const values = sorted.map((raid) => {
+  const points = sorted.map((raid, index) => {
     cumulative += raid.netProfit;
-    return cumulative;
+    return {
+      index,
+      label: `R${index + 1}`,
+      raidId: raid.id,
+      map: raid.map,
+      mode: raid.mode,
+      status: raid.status,
+      timestamp: raid.timestamp,
+      netProfit: raid.netProfit,
+      cumulative,
+    };
   });
-  const labels = values.map((_, index) => `R${index + 1}`);
+  const values = points.map((point) => point.cumulative);
+  const labels = points.map((point) => point.label);
 
   if (values.length === 0) {
     return {
       values: [],
       labels: [],
+      points: [],
       ...DEFAULT_PROFIT_CURVE_BOUNDS,
     };
   }
@@ -110,6 +122,7 @@ export function calculateProfitCurve(raids: Raid[] = getRaids()): ProfitCurveDat
   return {
     values,
     labels,
+    points,
     minY,
     maxY,
     yAxisTicks: buildYAxisTicks(minY, maxY),

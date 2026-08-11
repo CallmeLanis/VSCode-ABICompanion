@@ -1,18 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, Button, NumberInput, ConfirmModal, PageHeader } from '../components/ui';
 import { MergeDataBlock } from '../components/MergeDataBlock';
-import { getStoredSettings, saveSettings, clearAllStorage } from '../utils/storage';
+import { getStoredSettings, saveSettings, clearAllStorage, getLootDBItems, loadBasicLootDB, generateId } from '../utils/storage';
 import { formatPercentage } from '../utils/economy';
-import { Trash2, Info, Download, Database } from 'lucide-react';
+import { mergeImportedData } from '../utils/dataMerge';
+import { buildBasicLootDBSeedItems, BASIC_LOOTDB_SEED_COUNT } from '../data/basicLootDBSeed';
+import { Trash2, Info, Download, Database, Upload, Package } from 'lucide-react';
 import type { AppSettings } from '../types';
 import { RevealSection, StaggerContainer, StaggerItem } from '../components/motion';
 import { loadDemoData } from '../utils/mockData';
+
+function downloadLootDBExport() {
+  const lootdb = getLootDBItems();
+  const payload = {
+    lootdb,
+    exportedAt: new Date().toISOString(),
+    source: 'abi-companion-lootdb',
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  anchor.href = url;
+  anchor.download = `abi-lootdb-${stamp}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function normalizeLootDBImportPayload(data: unknown): unknown {
+  if (Array.isArray(data)) return { lootdb: data };
+  return data;
+}
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<Partial<AppSettings>>(getStoredSettings);
   const [hasChanges, setHasChanges] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
+  const [showBasicLootConfirm, setShowBasicLootConfirm] = useState(false);
+  const [lootImportStatus, setLootImportStatus] = useState<string | null>(null);
+  const [lootImportBusy, setLootImportBusy] = useState(false);
+  const lootFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const original = getStoredSettings();
@@ -30,6 +58,62 @@ export function SettingsPage() {
     setSettings({});
     saveSettings({});
     setHasChanges(false);
+  };
+
+  const handleExportLootDB = () => {
+    const count = getLootDBItems().length;
+    downloadLootDBExport();
+    setLootImportStatus(
+      count > 0
+        ? `Extracted ${count} LootDB catalog ${count === 1 ? 'item' : 'items'} to JSON.`
+        : 'Exported empty LootDB catalog (0 items).'
+    );
+  };
+
+  const handleLootFileSelected = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setLootImportStatus('Select a .json LootDB export file.');
+      return;
+    }
+
+    setLootImportBusy(true);
+    setLootImportStatus(null);
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      const result = mergeImportedData(normalizeLootDBImportPayload(parsed));
+
+      if (!result.success) {
+        const firstError = result.errors[0]?.message ?? 'Invalid LootDB JSON';
+        setLootImportStatus(`Load failed: ${firstError}`);
+        return;
+      }
+
+      const { added, updated, skipped } = result.summary.lootdb;
+      if (added + updated === 0 && skipped === 0) {
+        setLootImportStatus('No LootDB items found in that file.');
+        return;
+      }
+
+      setLootImportStatus(
+        `LootDB loaded · ${added} added · ${updated} updated${skipped > 0 ? ` · ${skipped} skipped` : ''}. Reloading…`
+      );
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown parse error';
+      setLootImportStatus(`Load failed: ${message}`);
+    } finally {
+      setLootImportBusy(false);
+      if (lootFileInputRef.current) lootFileInputRef.current.value = '';
+    }
+  };
+
+  const handleLoadBasicLootDB = () => {
+    const result = loadBasicLootDB(buildBasicLootDBSeedItems(generateId));
+    setLootImportStatus(
+      `Basic LootDB loaded · ${result.added} added · ${result.updated} updated · ${result.total} catalog items. Reloading…`,
+    );
+    window.setTimeout(() => window.location.reload(), 700);
   };
 
   return (
@@ -171,6 +255,52 @@ export function SettingsPage() {
               <Database size={16} className="mr-1" /> Load Demo Data
             </Button>
           </div>
+
+          <div className="p-3 bg-abi-bg border border-abi-border rounded-lg">
+            <p className="text-sm text-secondary mb-3">
+              Load the built-in consumables catalog ({BASIC_LOOTDB_SEED_COUNT} items: medic + grenade)
+              for Mission Debrief pickers. Matches by name — existing prices update in place; raids untouched.
+            </p>
+            <Button variant="secondary" onClick={() => setShowBasicLootConfirm(true)}>
+              <Package size={16} className="mr-1" /> Load Basic LootDB
+            </Button>
+          </div>
+
+          <div className="p-3 bg-abi-bg border border-abi-border rounded-lg">
+            <p className="text-sm text-secondary mb-3">
+              Extract your Loot Database catalog to JSON, or load a LootDB export to merge items
+              (match by id / name; prices and metadata update in place). Does not touch raids.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={handleExportLootDB}>
+                <Download size={16} className="mr-1" /> Extract LootDB
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={lootImportBusy}
+                onClick={() => lootFileInputRef.current?.click()}
+              >
+                <Upload size={16} className="mr-1" /> {lootImportBusy ? 'Loading…' : 'Load LootDB'}
+              </Button>
+              <input
+                ref={lootFileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  if (file) void handleLootFileSelected(file);
+                }}
+              />
+            </div>
+            {lootImportStatus && (
+              <p className="text-xs text-abi-text-dim mt-3 flex items-start gap-2">
+                <Package size={14} className="mt-0.5 shrink-0 text-abi-orange" />
+                <span>{lootImportStatus}</span>
+              </p>
+            )}
+          </div>
+
           <div className="p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
             <p className="text-sm text-yellow-400 flex items-start gap-2">
               <Info size={16} className="mt-0.5 shrink-0" />
@@ -205,6 +335,19 @@ export function SettingsPage() {
       )}
 
       {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showBasicLootConfirm}
+        onClose={() => setShowBasicLootConfirm(false)}
+        onConfirm={() => {
+          handleLoadBasicLootDB();
+          setShowBasicLootConfirm(false);
+        }}
+        title="Load Basic LootDB"
+        message={`This upserts ${BASIC_LOOTDB_SEED_COUNT} built-in medic and grenade catalog items (match by name). Your raids and custom LootDB entries are kept.`}
+        confirmText="Load Basic LootDB"
+        variant="primary"
+      />
+
       <ConfirmModal
         isOpen={showDemoConfirm}
         onClose={() => setShowDemoConfirm(false)}
