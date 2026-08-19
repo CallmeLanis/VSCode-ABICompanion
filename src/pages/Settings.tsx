@@ -1,34 +1,41 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, Button, NumberInput, ConfirmModal, PageHeader } from '../components/ui';
 import { MergeDataBlock } from '../components/MergeDataBlock';
-import { getStoredSettings, saveSettings, clearAllStorage, getLootDBItems, loadBasicLootDB, generateId } from '../utils/storage';
+import { getStoredSettings, saveSettings, clearAllStorage, getLootDBItems, loadInventoryCatalog, generateId } from '../utils/storage';
 import { formatPercentage } from '../utils/economy';
 import { mergeImportedData } from '../utils/dataMerge';
-import { buildBasicLootDBSeedItems, BASIC_LOOTDB_SEED_COUNT } from '../data/basicLootDBSeed';
+import { INVENTORY_CATALOG_SEED_COUNT } from '../data/inventoryCatalogSeed';
+import { fetchInventoryCatalogItems } from '../data/inventoryCatalogLoader';
 import { Trash2, Info, Download, Database, Upload, Package } from 'lucide-react';
 import type { AppSettings } from '../types';
 import { RevealSection, StaggerContainer, StaggerItem } from '../components/motion';
 import { loadDemoData } from '../utils/mockData';
 
-function downloadLootDBExport() {
-  const lootdb = getLootDBItems();
+function downloadInventoryExport() {
+  const inventory = getLootDBItems();
   const payload = {
-    lootdb,
+    inventory,
     exportedAt: new Date().toISOString(),
-    source: 'abi-companion-lootdb',
+    source: 'abi-companion-inventory',
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   const stamp = new Date().toISOString().slice(0, 10);
   anchor.href = url;
-  anchor.download = `abi-lootdb-${stamp}.json`;
+  anchor.download = `abi-inventory-${stamp}.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
 
-function normalizeLootDBImportPayload(data: unknown): unknown {
+function normalizeInventoryImportPayload(data: unknown): unknown {
   if (Array.isArray(data)) return { lootdb: data };
+  if (data && typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+    if (Array.isArray(record.inventory) && !Array.isArray(record.lootdb)) {
+      return { lootdb: record.inventory };
+    }
+  }
   return data;
 }
 
@@ -37,7 +44,8 @@ export function SettingsPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
-  const [showBasicLootConfirm, setShowBasicLootConfirm] = useState(false);
+  const [showInventoryConfirm, setShowInventoryConfirm] = useState(false);
+  const [inventoryLoadBusy, setInventoryLoadBusy] = useState(false);
   const [lootImportStatus, setLootImportStatus] = useState<string | null>(null);
   const [lootImportBusy, setLootImportBusy] = useState(false);
   const lootFileInputRef = useRef<HTMLInputElement>(null);
@@ -60,19 +68,19 @@ export function SettingsPage() {
     setHasChanges(false);
   };
 
-  const handleExportLootDB = () => {
+  const handleExportInventory = () => {
     const count = getLootDBItems().length;
-    downloadLootDBExport();
+    downloadInventoryExport();
     setLootImportStatus(
       count > 0
-        ? `Extracted ${count} LootDB catalog ${count === 1 ? 'item' : 'items'} to JSON.`
-        : 'Exported empty LootDB catalog (0 items).'
+        ? `Extracted ${count} inventory ${count === 1 ? 'item' : 'items'} to JSON.`
+        : 'Exported empty inventory catalog (0 items).'
     );
   };
 
   const handleLootFileSelected = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.json')) {
-      setLootImportStatus('Select a .json LootDB export file.');
+      setLootImportStatus('Select a .json inventory export file.');
       return;
     }
 
@@ -81,22 +89,22 @@ export function SettingsPage() {
 
     try {
       const parsed = JSON.parse(await file.text());
-      const result = mergeImportedData(normalizeLootDBImportPayload(parsed));
+      const result = mergeImportedData(normalizeInventoryImportPayload(parsed));
 
       if (!result.success) {
-        const firstError = result.errors[0]?.message ?? 'Invalid LootDB JSON';
+        const firstError = result.errors[0]?.message ?? 'Invalid inventory JSON';
         setLootImportStatus(`Load failed: ${firstError}`);
         return;
       }
 
       const { added, updated, skipped } = result.summary.lootdb;
       if (added + updated === 0 && skipped === 0) {
-        setLootImportStatus('No LootDB items found in that file.');
+        setLootImportStatus('No inventory items found in that file.');
         return;
       }
 
       setLootImportStatus(
-        `LootDB loaded · ${added} added · ${updated} updated${skipped > 0 ? ` · ${skipped} skipped` : ''}. Reloading…`
+        `Inventory loaded · ${added} added · ${updated} updated${skipped > 0 ? ` · ${skipped} skipped` : ''}. Reloading…`
       );
       window.setTimeout(() => window.location.reload(), 700);
     } catch (error) {
@@ -108,12 +116,23 @@ export function SettingsPage() {
     }
   };
 
-  const handleLoadBasicLootDB = () => {
-    const result = loadBasicLootDB(buildBasicLootDBSeedItems(generateId));
-    setLootImportStatus(
-      `Basic LootDB loaded · ${result.added} added · ${result.updated} updated · ${result.total} catalog items. Reloading…`,
-    );
-    window.setTimeout(() => window.location.reload(), 700);
+  const handleLoadInventory = async () => {
+    setInventoryLoadBusy(true);
+    setLootImportStatus(null);
+
+    try {
+      const catalogItems = await fetchInventoryCatalogItems(generateId);
+      const result = loadInventoryCatalog(catalogItems);
+      setLootImportStatus(
+        `Inventory loaded · ${result.added} added · ${result.updated} updated · ${result.total} catalog items. Reloading…`,
+      );
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown load error';
+      setLootImportStatus(`Inventory load failed: ${message}`);
+    } finally {
+      setInventoryLoadBusy(false);
+    }
   };
 
   return (
@@ -258,29 +277,33 @@ export function SettingsPage() {
 
           <div className="p-3 bg-abi-bg border border-abi-border rounded-lg">
             <p className="text-sm text-secondary mb-3">
-              Load the built-in consumables catalog ({BASIC_LOOTDB_SEED_COUNT} items: medic + grenade)
+              Load the bundled inventory catalog ({INVENTORY_CATALOG_SEED_COUNT} items: medic + grenade)
               for Mission Debrief pickers. Matches by name — existing prices update in place; raids untouched.
             </p>
-            <Button variant="secondary" onClick={() => setShowBasicLootConfirm(true)}>
-              <Package size={16} className="mr-1" /> Load Basic LootDB
+            <Button
+              variant="secondary"
+              disabled={inventoryLoadBusy}
+              onClick={() => setShowInventoryConfirm(true)}
+            >
+              <Package size={16} className="mr-1" /> {inventoryLoadBusy ? 'Loading…' : 'Load Inventory'}
             </Button>
           </div>
 
           <div className="p-3 bg-abi-bg border border-abi-border rounded-lg">
             <p className="text-sm text-secondary mb-3">
-              Extract your Loot Database catalog to JSON, or load a LootDB export to merge items
+              Extract your Inventory catalog to JSON, or load an inventory export to merge items
               (match by id / name; prices and metadata update in place). Does not touch raids.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={handleExportLootDB}>
-                <Download size={16} className="mr-1" /> Extract LootDB
+              <Button variant="secondary" onClick={handleExportInventory}>
+                <Download size={16} className="mr-1" /> Extract Inventory
               </Button>
               <Button
                 variant="secondary"
                 disabled={lootImportBusy}
                 onClick={() => lootFileInputRef.current?.click()}
               >
-                <Upload size={16} className="mr-1" /> {lootImportBusy ? 'Loading…' : 'Load LootDB'}
+                <Upload size={16} className="mr-1" /> {lootImportBusy ? 'Loading…' : 'Load Inventory File'}
               </Button>
               <input
                 ref={lootFileInputRef}
@@ -305,7 +328,7 @@ export function SettingsPage() {
             <p className="text-sm text-yellow-400 flex items-start gap-2">
               <Info size={16} className="mt-0.5 shrink-0" />
               <span>
-                Clearing data will permanently delete all your raids, sessions, highlights, and LootDB items.
+                Clearing data will permanently delete all your raids, sessions, highlights, and inventory items.
                 This action cannot be undone.
               </span>
             </p>
@@ -336,15 +359,15 @@ export function SettingsPage() {
 
       {/* Confirm Modal */}
       <ConfirmModal
-        isOpen={showBasicLootConfirm}
-        onClose={() => setShowBasicLootConfirm(false)}
+        isOpen={showInventoryConfirm}
+        onClose={() => setShowInventoryConfirm(false)}
         onConfirm={() => {
-          handleLoadBasicLootDB();
-          setShowBasicLootConfirm(false);
+          void handleLoadInventory();
+          setShowInventoryConfirm(false);
         }}
-        title="Load Basic LootDB"
-        message={`This upserts ${BASIC_LOOTDB_SEED_COUNT} built-in medic and grenade catalog items (match by name). Your raids and custom LootDB entries are kept.`}
-        confirmText="Load Basic LootDB"
+        title="Load Inventory"
+        message={`This upserts ${INVENTORY_CATALOG_SEED_COUNT} bundled inventory catalog items (match by name). Your raids and custom inventory entries are kept.`}
+        confirmText="Load Inventory"
         variant="primary"
       />
 
@@ -357,7 +380,7 @@ export function SettingsPage() {
           window.location.reload();
         }}
         title="Load Demo Data"
-        message="This replaces your current raids, sessions, and highlights with 48 demo operations for testing. Your LootDB and settings are kept."
+        message="This replaces your current raids, sessions, and highlights with 48 demo operations for testing. Your inventory and settings are kept."
         confirmText="Load Demo Data"
         variant="primary"
       />

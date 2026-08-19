@@ -85,22 +85,6 @@ export function DebriefStepContent({ form, stepId }: DebriefStepContentProps) {
         </div>
 
         <div className="form-group">
-          <label>AMMUNITION</label>
-          <div className="log-mini-item">
-            <span>Total Ammo Value</span>
-            <span>${ammoTotalCost.toLocaleString()}</span>
-          </div>
-          <motion.button
-            type="button"
-            onClick={() => setShowAmmoModal(true)}
-            whileTap={reducedMotion ? undefined : { scale: 0.985 }}
-            className="debrief-subaction w-full mt-2 px-3 py-2 border border-abi-border rounded-lg text-xs font-semibold text-abi-text-muted"
-          >
-            {ammo.length > 0 ? 'Edit Ammo' : '+ Add Ammo'}
-          </motion.button>
-        </div>
-
-        <div className="form-group">
           <label>CONSUMABLES</label>
           <div className="log-mini-item">
             <span>Total Consumables Value</span>
@@ -231,6 +215,22 @@ export function DebriefStepContent({ form, stepId }: DebriefStepContentProps) {
     return (
       <div className="space-y-3 debrief-step-fields">
         <div className="form-group">
+          <label>AMMUNITION</label>
+          <div className="log-mini-item">
+            <span>Total Ammo Value</span>
+            <span>${ammoTotalCost.toLocaleString()}</span>
+          </div>
+          <motion.button
+            type="button"
+            onClick={() => setShowAmmoModal(true)}
+            whileTap={reducedMotion ? undefined : { scale: 0.985 }}
+            className="debrief-subaction w-full mt-2 px-3 py-2 border border-abi-border rounded-lg text-xs font-semibold text-abi-text-muted"
+          >
+            {ammo.length > 0 ? 'Edit Ammo' : '+ Add Ammo'}
+          </motion.button>
+        </div>
+
+        <div className="form-group">
           <label>LOOT VALUE</label>
           <input
             type="number"
@@ -242,7 +242,7 @@ export function DebriefStepContent({ form, stepId }: DebriefStepContentProps) {
           />
         </div>
         <Caption tone="secondary" className="block">
-          Enter the total loot value secured in this operation. Net profit and ROI update live in the KPI dock.
+          Log rounds expended after the raid, then the loot secured. Net profit and ROI update live in the KPI dock.
         </Caption>
       </div>
     );

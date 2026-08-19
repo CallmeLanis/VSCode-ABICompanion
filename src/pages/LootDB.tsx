@@ -181,7 +181,7 @@ export function LootDB() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Intelligence inventory"
-        title="Loot Database"
+        title="Inventory"
         meta={`${summary.totalItems} catalog records`}
         actions={
           <Button variant="primary" onClick={() => setShowAddModal(true)}>

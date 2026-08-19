@@ -1,0 +1,600 @@
+{
+  "inventory": [
+    {
+      "id": "inventory-catalog-000",
+      "name": "STO Meds",
+      "category": "Medkits",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medkits",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 81400
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-001",
+      "name": "12x Sur Kit",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 73440
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-002",
+      "name": "EX Painkiller",
+      "category": "Medicine",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medicine",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 57138
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-003",
+      "name": "TMK Meds",
+      "category": "Medkits",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medkits",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 51282
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-004",
+      "name": "100D Meds",
+      "category": "Medkits",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medkits",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 40320
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-005",
+      "name": "8x Sur Kit",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 36288
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-006",
+      "name": "AP Painkiller",
+      "category": "Medicine",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medicine",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 28840
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-007",
+      "name": "Nebulizer",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 26433
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-008",
+      "name": "4x Sur Kit",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 23040
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-009",
+      "name": "Regeneration Stim",
+      "category": "Stimulants",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "stimulants",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 21000
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-010",
+      "name": "Endurance Stim",
+      "category": "Stimulants",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "stimulants",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 15330
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-011",
+      "name": "Blue Painkiller",
+      "category": "Medicine",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medicine",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 13700
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-012",
+      "name": "E3 Meds",
+      "category": "Medkits",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medkits",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 12240
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-013",
+      "name": "926 Meds",
+      "category": "Medkits",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medkits",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 7600
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-014",
+      "name": "Strength Stim",
+      "category": "Stimulants",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "stimulants",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 6900
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-015",
+      "name": "Simple Sur Kit",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 2500
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-016",
+      "name": "Liquid Painkiller",
+      "category": "Medicine",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medicine",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 2200
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-017",
+      "name": "OPM Bandage",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 2000
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-018",
+      "name": "Standard Meds",
+      "category": "Medkits",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medkits",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 1920
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-019",
+      "name": "Energy Drink",
+      "category": "Medicine",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medicine",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 1818
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-020",
+      "name": "Simple Meds",
+      "category": "Medkits",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medkits",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 1302
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-021",
+      "name": "Red Painkiller",
+      "category": "Medicine",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "medicine",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 1000
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-022",
+      "name": "Field Bandage",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 736
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-023",
+      "name": "Quick Bandage",
+      "category": "Treatments",
+      "rarity": "common",
+      "type": "medic",
+      "subtype": "treatments",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 246
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-024",
+      "name": "Shock Grenade",
+      "category": "Defend",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "defend",
+      "marketPrice": 45977,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 40000
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "Market"
+    },
+    {
+      "id": "inventory-catalog-025",
+      "name": "MK2 Nade",
+      "category": "Blast",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "blast",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 27615
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-026",
+      "name": "M67 Nade",
+      "category": "Blast",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "blast",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 27115
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-027",
+      "name": "GHO Nade",
+      "category": "Blast",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "blast",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 26105
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-028",
+      "name": "F4 Tear Gas",
+      "category": "Defend",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "defend",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 9360
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-029",
+      "name": "M18 Smoke",
+      "category": "Defend",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "defend",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 9280
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-030",
+      "name": "Z3 Stun",
+      "category": "Defend",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "defend",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 8460
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-031",
+      "name": "M84 Flashbang",
+      "category": "Defend",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "defend",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 7520
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    },
+    {
+      "id": "inventory-catalog-032",
+      "name": "Molotov",
+      "category": "Defend",
+      "rarity": "common",
+      "type": "grenade",
+      "subtype": "defend",
+      "marketPrice": 0,
+      "vendorPrices": [
+        {
+          "vendor": "CONTACT",
+          "price": 7440
+        }
+      ],
+      "lowestPrice": 0,
+      "lowestPriceHistory": [],
+      "bestSellTo": "CONTACT"
+    }
+  ],
+  "source": "abi-companion-inventory",
+  "exportedAt": "2026-08-19T19:01:00.839Z"
+}

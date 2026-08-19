@@ -198,14 +198,14 @@ export function useMissionDebriefForm(onRaidLogged?: (raidId: string) => void) {
             ? `${status === 'EXTRACTED' ? 'Extracted' : 'Died'} · ${kills ?? 0} kills`
             : 'Outcome pending';
         case 3:
-          return `Loot $${(lootValue ?? 0).toLocaleString()}`;
+          return `Ammo $${ammoTotalCost.toLocaleString()} · Loot $${(lootValue ?? 0).toLocaleString()}`;
         case 4:
           return `${economyPreview.netProfit >= 0 ? '+' : ''}$${economyPreview.netProfit.toLocaleString()} · ${economyPreview.roi.toFixed(1)}% ROI`;
         default:
           return '';
       }
     },
-    [mapName, modeName, status, kills, lootValue, economyPreview]
+    [mapName, modeName, status, kills, ammoTotalCost, lootValue, economyPreview]
   );
 
   return {

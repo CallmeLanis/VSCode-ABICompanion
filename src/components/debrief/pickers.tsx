@@ -471,9 +471,9 @@ export function AmmoPickerModal({ isOpen, onClose, onSave, initialAmmo = [] }: {
               {calibers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                   <Database size={40} className="text-abi-text-dim mb-4" />
-                  <p className="text-abi-text-muted text-sm">No ammo in Loot Database</p>
+                  <p className="text-abi-text-muted text-sm">No ammo in Inventory</p>
                   <p className="text-abi-text-dim text-xs mt-2 max-w-xs">
-                    Add ammo catalog entries in Intelligence → Loot Database (Type: Ammo, Caliber, Market Price).
+                    Add ammo catalog entries in Intelligence → Inventory (Type: Ammo, Caliber, Market Price).
                   </p>
                 </div>
               ) : (
@@ -913,9 +913,9 @@ export function ConsumablesPickerModal({ isOpen, onClose, onSave, initialConsuma
               {catalogEmpty ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                   <Database size={40} className="text-abi-text-dim mb-4" />
-                  <p className="text-abi-text-muted text-sm">No consumables in Loot Database</p>
+                  <p className="text-abi-text-muted text-sm">No consumables in Inventory</p>
                   <p className="text-abi-text-dim text-xs mt-2 max-w-xs">
-                    Add medic or grenade catalog entries in Intelligence → Loot Database
+                    Add medic or grenade catalog entries in Intelligence → Inventory
                     (Type: Medic / Grenade, Market Price).
                   </p>
                 </div>

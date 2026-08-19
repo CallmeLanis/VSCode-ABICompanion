@@ -54,7 +54,7 @@ const NAV_SECTIONS: {
       { id: 'economy', label: 'Economy', icon: <TrendingUp size={18} strokeWidth={1.75} /> },
       { id: 'gear', label: 'Gear', icon: <Shield size={18} strokeWidth={1.75} /> },
       { id: 'performance', label: 'Performance', icon: <Activity size={18} strokeWidth={1.75} /> },
-      { id: 'lootdb', label: 'Loot DB', icon: <Database size={18} strokeWidth={1.75} /> },
+      { id: 'lootdb', label: 'Inventory', icon: <Database size={18} strokeWidth={1.75} /> },
       { id: 'intelligence', label: 'Intelligence', icon: <Radar size={18} strokeWidth={1.75} /> },
     ],
   },

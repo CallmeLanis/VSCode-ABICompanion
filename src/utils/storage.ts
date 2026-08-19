@@ -203,12 +203,15 @@ export function upsertLootCatalogSeed(seedItems: LootDBItem[]): {
   return { added, updated, total: seedItems.length };
 }
 
-/** Load built-in medic + grenade catalog (upsert by name). */
-export function loadBasicLootDB(
+/** Load bundled inventory catalog (upsert by name). */
+export function loadInventoryCatalog(
   seedItems: LootDBItem[],
 ): { added: number; updated: number; total: number } {
   return upsertLootCatalogSeed(seedItems);
 }
+
+/** @deprecated Use loadInventoryCatalog */
+export const loadBasicLootDB = loadInventoryCatalog;
 
 // Settings
 export function getSettings(): AppSettings {
